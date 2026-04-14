@@ -1,0 +1,6 @@
+modusa
+matplotlib
+numpy
+librosa
+soundfile
+torch
