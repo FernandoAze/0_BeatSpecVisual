@@ -10,7 +10,7 @@ BeatSpecVisual is a Python tool that visualizes beat detection results on audio 
 
 1. Clone or download this repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/FernandoAze/0_BeatSpecVisual.git
 cd 0_BeatSpecVisual
 ```
 
