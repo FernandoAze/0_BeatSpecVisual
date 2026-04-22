@@ -3,7 +3,7 @@ from beat_this.preprocessing import load_audio
 import numpy as np
 import os
 
-def run_beat_detection(audio_path="Chopin_OP9_n2.wav"):
+def run_beat_detection(audio_path="PARTITURAS_MEI/ChopinNocOP27n2-Full.wav"):
     """Run beat detection and save probabilities to .npy files"""
     print("\n" + "="*60)
     print("BEAT DETECTION")
@@ -47,6 +47,3 @@ def run_beat_detection(audio_path="Chopin_OP9_n2.wav"):
 
 if __name__ == "__main__":
     run_beat_detection()
-
-if __name__ == "__main__":
-    main()
