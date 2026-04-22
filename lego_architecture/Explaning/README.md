@@ -1,23 +1,26 @@
-# BeatSpecVisual
+# BeatSpec Visual
 
-BeatSpecVisual is a Python tool that visualizes beat detection results on audio spectrograms. It uses the beat_this model to detect beats and downbeats in audio files, then overlays the probability distributions on a mel-spectrogram for interactive visualization.
+A visualization system for beat tracking and spectrogram analysis using a modular, lego-like architecture with Python's OOP principles.
 
-## Requirements
+## Features
 
-- Python 3.12
-- GPU: Not required (will run on CPU). Though you can run it with PyTorch (instead of torch) if you have a CUDA compatible GPU.
+- **Modular Layer Architecture**: Add visualization layers independently (Spectrogram, Beat Probabilities, Downbeat Probabilities)
+- **Spectrogram Analysis**: Loads and displays spectrograms of audio files
+- **Beat Detection**: Visualizes beat probabilities and downbeat predictions from the BeatThis! algorithm
+- **Easy Integration**: Simple fluent API for adding and configuring layers
+
 ## Installation
 
-1. Clone or download this repository:
+1. Clone the repository:
 ```bash
-git clone https://github.com/FernandoAze/0_BeatSpecVisual.git
+git clone <repo-url>
 cd 0_BeatSpecVisual
 ```
 
-2. Create a virtual environment:
+2. Create a virtual environment (recommended):
 ```bash
-python3.12 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python3 -m venv venv
+source venv/bin/activate
 ```
 
 3. Install dependencies:
@@ -25,29 +28,84 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Install beat_this from source:
+4. Install beat_this algorithm:
 ```bash
-pip install https://github.com/CPJKU/beat_this/archive/main.zip
+pip install beat_this
 ```
 
-## Instructions
+## Usage
 
-1. Paste your audio file path ( WAV format) in:
-   ```python
-   AUDIO_FILE = "/path/to/your/file"
-   ```
-   *(Optional: Skip this step to test with the default .wav file)*
-
-2. Run the main visualization script:
+Run the example visualization script:
 ```bash
-python3.12 layers.py
+python3 lego_layers.py
 ```
 
-3. The script will:
-   - Detect beats and downbeats using the beat_this model
-   - Compute a high-resolution mel-spectrogram
-   - Display an interactive visualization with:
-     - Spectrogram as the background
-     - Beat and downbeat probability curves overlaid
-     - Interactive controls for zooming and panning
+This will:
+1. Load audio from `PARTITURAS_MEI/ChopinNocOP27n2-Full.wav`
+2. Load beat probabilities from `beat_probs.npz`
+3. Display layers for spectrogram, beat probabilities, and downbeat probabilities
+4. Show an interactive matplotlib visualization
 
+## Project Structure
+
+```
+├── visualization_system.py      # Main visualization engine (Visualizer, Layer base class)
+├── Spectogram_layer.py          # Audio spectrogram visualization
+├── BeatThis_layers.py           # BeatThis! algorithm visualization layers
+├── lego_layers.py               # Example usage script
+├── beat_this_call.py            # BeatThis! algorithm implementation
+├── BeatThis_layers.py           # Beat tracking layer definitions
+├── requirements.txt             # Python dependencies
+├── beat_probs.npz               # Precomputed beat probabilities
+└── PARTITURAS_MEI/              # Musical scores and audio files
+    ├── nocturne-op-27-no-2.mei
+    ├── clair-de-lune FULL.mei
+    └── peaks/
+```
+
+## Architecture
+
+### Layer-Based Design
+
+All visualization elements inherit from the `Layer` abstract base class:
+
+```python
+class Layer(ABC):
+    @abstractmethod
+    def load_data(self, **kwargs) -> bool:
+        """Load layer-specific data"""
+        pass
+    
+    @abstractmethod
+    def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:
+        """Draw the layer on matplotlib axes"""
+        pass
+```
+
+### Available Layers
+
+- **SpectrogramLayer**: Displays audio spectrogram
+- **BeatProbabilityLayer**: Visualizes beat probability predictions
+- **DownbeatProbabilityLayer**: Visualizes downbeat probability predictions
+
+### Visualizer
+
+The `Visualizer` class orchestrates all layers:
+
+```python
+viz = Visualizer()
+viz.add_layer(SpectrogramLayer())
+viz.add_layer(BeatProbabilityLayer())
+viz.load_all_layers(audio_path="...", beat_probs_file="...")
+fig, ax = viz.draw()
+viz.show()
+```
+
+## Dependencies
+
+- **modusa**: Music dataset utilities
+- **matplotlib**: Data visualization
+- **numpy**: Numerical computing
+- **librosa**: Audio analysis
+- **soundfile**: Audio file I/O
+- **torch**: Deep learning framework
