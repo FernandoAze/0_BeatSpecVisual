@@ -3,7 +3,8 @@ from beat_this.preprocessing import load_audio
 import numpy as np
 import os
 
-def run_beat_detection(audio_path="PARTITURAS_MEI/ChopinNocOP27n2-Full.wav"):
+def run_beat_detection(audio_path="PARTITURAS_MEI/Chopin_op10_no3_p01.wav"):
+
     """Run beat detection and save probabilities to .npy files"""
     print("\n" + "="*60)
     print("BEAT DETECTION")
@@ -34,11 +35,9 @@ def run_beat_detection(audio_path="PARTITURAS_MEI/ChopinNocOP27n2-Full.wav"):
         # Detect actual beats and downbeats using Audio2Beats
         print("Detecting beat positions...")
         beat_detector = Audio2Beats(checkpoint_path="final0", device="cpu")
-        detected_beat_frames, detected_downbeat_frames = beat_detector(waveform, sample_rate)
+        detected_beats, detected_downbeats = beat_detector(waveform, sample_rate)
         
-        # Convert frame indices to timestamps
-        detected_beats = detected_beat_frames * (hop_length / target_sr)
-        detected_downbeats = detected_downbeat_frames * (hop_length / target_sr)
+        # Audio2Beats already returns times in seconds, no conversion needed
         print(f"✓ Detected {len(detected_beats)} beats and {len(detected_downbeats)} downbeats")
         
         print("✓ Saving output files...")
@@ -48,7 +47,7 @@ def run_beat_detection(audio_path="PARTITURAS_MEI/ChopinNocOP27n2-Full.wav"):
                  downbeat_probs=downbeat_logits.numpy(),
                  detected_beats=detected_beats,
                  detected_downbeats=detected_downbeats)
-        print("✓ File saved: beat_probs.npz (contains beat_times, beat_probs, downbeat_probs, detected_beats, detected_downbeats)")
+        print("✓ File saved: beat_probs.npz")
         return True
 
     except Exception as e:
