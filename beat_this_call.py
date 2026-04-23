@@ -1,4 +1,4 @@
-from beat_this.inference import Audio2Frames
+from beat_this.inference import Audio2Frames, Audio2Beats
 from beat_this.preprocessing import load_audio
 import numpy as np
 import os
@@ -31,12 +31,24 @@ def run_beat_detection(audio_path="PARTITURAS_MEI/ChopinNocOP27n2-Full.wav"):
         target_sr = 22050
         beat_times = np.arange(len(beat_logits)) * (hop_length / target_sr)
         
+        # Detect actual beats and downbeats using Audio2Beats
+        print("Detecting beat positions...")
+        beat_detector = Audio2Beats(checkpoint_path="final0", device="cpu")
+        detected_beat_frames, detected_downbeat_frames = beat_detector(waveform, sample_rate)
+        
+        # Convert frame indices to timestamps
+        detected_beats = detected_beat_frames * (hop_length / target_sr)
+        detected_downbeats = detected_downbeat_frames * (hop_length / target_sr)
+        print(f"✓ Detected {len(detected_beats)} beats and {len(detected_downbeats)} downbeats")
+        
         print("✓ Saving output files...")
         np.savez("beat_probs.npz", 
                  beat_times=beat_times, 
                  beat_probs=beat_logits.numpy(),
-                 downbeat_probs=downbeat_logits.numpy())
-        print("✓ File saved: beat_probs.npz (contains beat_times, beat_probs, downbeat_probs)")
+                 downbeat_probs=downbeat_logits.numpy(),
+                 detected_beats=detected_beats,
+                 detected_downbeats=detected_downbeats)
+        print("✓ File saved: beat_probs.npz (contains beat_times, beat_probs, downbeat_probs, detected_beats, detected_downbeats)")
         return True
 
     except Exception as e:
