@@ -4,6 +4,7 @@ Contains all visualization layers specific to the BeatThis! beat tracking algori
 """
 
 from abc import ABC, abstractmethod
+from matplotlib import lines
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -65,6 +66,10 @@ class BeatThisLayer(Layer):
 class BeatProbabilityLayer(BeatThisLayer):
     """Visualizes beat probability outputs from BeatThis! algorithm."""
     
+    def __init__(self, name: str = "Beat Probability", color = 'r'):
+        super().__init__(name)
+        self.color = color
+    
     def load_data(self, beat_probs_file: str = "beat_probs.npz", **kwargs) -> bool:
         if not self._load_beat_times(beat_probs_file):
             return False
@@ -88,8 +93,8 @@ class BeatProbabilityLayer(BeatThisLayer):
         ax2 = self._setup_probability_axis(ax, shared_data)
         beat_percent = self._normalize_probabilities(self._data["beat_probs"])
         
-        line1, = ax2.plot(self._data["beat_times"], beat_percent, 'r-', 
-                         linewidth=2, label='Beat Probability', alpha=0.9)
+        line1, = ax2.plot(self._data["beat_times"], beat_percent, '-', 
+                         color=self.color, linewidth=2, label='Beat Probability', alpha=0.9)
         
         self._register_ylim_callback(ax, ax2)
         
@@ -98,6 +103,10 @@ class BeatProbabilityLayer(BeatThisLayer):
 
 class DownbeatProbabilityLayer(BeatThisLayer):
     """Visualizes downbeat probability outputs from BeatThis! algorithm."""
+    
+    def __init__(self, name: str = "Downbeat Probability", color = 'b'):
+        super().__init__(name)
+        self.color = color
     
     def load_data(self, beat_probs_file: str = "beat_probs.npz", **kwargs) -> bool:
         if not self._load_beat_times(beat_probs_file):
@@ -122,9 +131,79 @@ class DownbeatProbabilityLayer(BeatThisLayer):
         ax2 = self._setup_probability_axis(ax, shared_data)
         downbeat_percent = self._normalize_probabilities(self._data["downbeat_probs"])
         
-        line2, = ax2.plot(self._data["beat_times"], downbeat_percent, 'b-',
-                         linewidth=2, label='Downbeat Probability', alpha=0.9)
+        line2, = ax2.plot(self._data["beat_times"], downbeat_percent, '-',
+                         color=self.color, linewidth=2, label='Downbeat Probability', alpha=0.9)
         
         self._register_ylim_callback(ax, ax2)
         
         return [line2], ['Downbeat Probability']
+
+class BeatAccurateLayer(BeatThisLayer):
+    """Visualizes detected beat times as vertical lines on the spectrogram."""
+    
+    def __init__(self, name: str = "Beat Accurate", beat_color: str = 'red', downbeat_color: str = 'blue'):
+        super().__init__(name)
+        self.beat_color = beat_color
+        self.downbeat_color = downbeat_color
+    
+    def load_data(self, beat_probs_file: str = "beat_probs.npz", **kwargs) -> bool:
+        """Load detected beat and downbeat timestamps from .npz file"""
+        if not self._load_beat_times(beat_probs_file):
+            return False
+        try:
+            data = np.load(beat_probs_file)
+            
+            # Check if detected beats exist in file
+            if 'detected_beats' not in data or 'detected_downbeats' not in data:
+                print(f"✗ {self.name}: detected_beats or detected_downbeats not found in {beat_probs_file}")
+                print("  Please run beat detection first to generate detected beat positions")
+                return False
+            
+            self._data = {
+                "beat_times": self._beat_times,
+                "detected_beats": data['detected_beats'],
+                "detected_downbeats": data['detected_downbeats'],
+            }
+            print(f"✓ {self.name}: Loaded {len(self._data['detected_beats'])} beats and {len(self._data['detected_downbeats'])} downbeats")
+            return True
+        except Exception as e:
+            print(f"✗ {self.name} error: {e}")
+            return False
+    
+    def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:
+        """Draw vertical lines for detected beats and downbeats"""
+        if self._data is None:
+            print(f"✗ {self.name}: No data loaded")
+            return [], []
+        
+        lines_list = []
+        labels_list = []
+        
+        # Get current y-axis limits to scale line heights
+        y_min, y_max = ax.get_ylim()
+        
+        # Draw beats
+        beat_lines = []
+        for beat_time in self._data["detected_beats"]:
+            line = ax.axvline(x=beat_time, color=self.beat_color, linewidth=1.5, 
+                             alpha=0.7, linestyle='-', label='Beat')
+            beat_lines.append(line)
+        
+        if beat_lines:
+            lines_list.extend(beat_lines)
+            labels_list.append('Beat')
+        
+        # Draw downbeats
+        downbeat_lines = []
+        for downbeat_time in self._data["detected_downbeats"]:
+            line = ax.axvline(x=downbeat_time, color=self.downbeat_color, linewidth=1.5, 
+                             alpha=0.6, linestyle='--', label='Downbeat')
+            downbeat_lines.append(line)
+        
+        if downbeat_lines:
+            lines_list.extend(downbeat_lines)
+            labels_list.append('Downbeat')
+        
+        return lines_list, labels_list
+
+       

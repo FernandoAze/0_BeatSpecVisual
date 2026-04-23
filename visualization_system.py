@@ -64,10 +64,3 @@ class Visualizer:
     
     def show(self):
         plt.show()
-
-
-# Import Spectgram layer (which loads audio and computes spectrogram)
-from Spectogram_layer import SpectrogramLayer
-
-# Import BeatThis! visualization layers
-from BeatThis_layers import BeatThisLayer, BeatProbabilityLayer, DownbeatProbabilityLayer
