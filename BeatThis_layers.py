@@ -26,10 +26,10 @@ class BeatThisLayer(Layer):
         super().__init__(name)
         self._beat_times = None
     
-    def _load_beat_times(self, beat_probs_file: str = "beat_probs.npz") -> bool:
+    def _load_beat_times(self, beat_file: str = "beat_probs.npz") -> bool:
         """Load beat times from .npz file (shared across all BeatThis! layers)"""
         try:
-            data = np.load(beat_probs_file)
+            data = np.load(beat_file)
             self._beat_times = data['beat_times']
             return True
         except Exception as e:
@@ -55,12 +55,20 @@ class BeatThisLayer(Layer):
         ax2.set_ylabel('Probability (%)', fontweight='bold', fontsize=11)
         return ax2
     
-    def _register_ylim_callback(self, ax: Axes, ax2: Axes):
-        """Register callback to maintain probability axis at 0-100% during zoom"""
-        def on_ylim_change(event):
-            """Keep secondary y-axis at 0-100% when user zooms on frequency axis"""
-            ax2.set_ylim(0, 100)
-        ax.callbacks.connect('ylim_changed', on_ylim_change)
+    def _setup_beat_lines_axis(self, ax: Axes, shared_data: Dict[str, Any]) -> Axes:
+        """Get or create third axis for beat line visualization"""
+        if "ax3" not in shared_data:
+            ax3 = ax.twinx()
+            ax3.spines['right'].set_position(('outward', 60))  # Offset from the right edge
+            ax3.set_yticks([])
+            ax3.set_ylabel('')
+            shared_data["ax3"] = ax3
+        else:
+            ax3 = shared_data["ax3"]
+        
+        return ax3
+    
+
 
 
 class BeatProbabilityLayer(BeatThisLayer):
@@ -70,11 +78,11 @@ class BeatProbabilityLayer(BeatThisLayer):
         super().__init__(name)
         self.color = color
     
-    def load_data(self, beat_probs_file: str = "beat_probs.npz", **kwargs) -> bool:
-        if not self._load_beat_times(beat_probs_file):
+    def load_data(self, beat_file: str = "beat_probs.npz", **kwargs) -> bool:
+        if not self._load_beat_times(beat_file):
             return False
         try:
-            data = np.load(beat_probs_file)
+            data = np.load(beat_file)
             self._data = {
                 "beat_times": self._beat_times,
                 "beat_probs": data['beat_probs'],
@@ -96,8 +104,6 @@ class BeatProbabilityLayer(BeatThisLayer):
         line1, = ax2.plot(self._data["beat_times"], beat_percent, '-', 
                          color=self.color, linewidth=2, label='Beat Probability', alpha=0.9)
         
-        self._register_ylim_callback(ax, ax2)
-        
         return [line1], ['Beat Probability']
 
 
@@ -108,11 +114,11 @@ class DownbeatProbabilityLayer(BeatThisLayer):
         super().__init__(name)
         self.color = color
     
-    def load_data(self, beat_probs_file: str = "beat_probs.npz", **kwargs) -> bool:
-        if not self._load_beat_times(beat_probs_file):
+    def load_data(self, beat_file: str = "beat_probs.npz", **kwargs) -> bool:
+        if not self._load_beat_times(beat_file):
             return False
         try:
-            data = np.load(beat_probs_file)
+            data = np.load(beat_file)
             self._data = {
                 "beat_times": self._beat_times,
                 "downbeat_probs": data['downbeat_probs'],
@@ -134,8 +140,6 @@ class DownbeatProbabilityLayer(BeatThisLayer):
         line2, = ax2.plot(self._data["beat_times"], downbeat_percent, '-',
                          color=self.color, linewidth=2, label='Downbeat Probability', alpha=0.9)
         
-        self._register_ylim_callback(ax, ax2)
-        
         return [line2], ['Downbeat Probability']
 
 class BeatAccurateLayer(BeatThisLayer):
@@ -146,16 +150,16 @@ class BeatAccurateLayer(BeatThisLayer):
         self.beat_color = beat_color
         self.downbeat_color = downbeat_color
     
-    def load_data(self, beat_probs_file: str = "beat_probs.npz", **kwargs) -> bool:
+    def load_data(self, beat_file: str = "beat_probs.npz", **kwargs) -> bool:
         """Load detected beat and downbeat timestamps from .npz file"""
-        if not self._load_beat_times(beat_probs_file):
+        if not self._load_beat_times(beat_file):
             return False
         try:
-            data = np.load(beat_probs_file)
+            data = np.load(beat_file)
             
             # Check if detected beats exist in file
             if 'detected_beats' not in data or 'detected_downbeats' not in data:
-                print(f"✗ {self.name}: detected_beats or detected_downbeats not found in {beat_probs_file}")
+                print(f"✗ {self.name}: detected_beats or detected_downbeats not found in {beat_file}")
                 print("  Please run beat detection first to generate detected beat positions")
                 return False
             
@@ -176,18 +180,22 @@ class BeatAccurateLayer(BeatThisLayer):
             print(f"✗ {self.name}: No data loaded")
             return [], []
         
+        ax3 = self._setup_beat_lines_axis(ax, shared_data)
         lines_list = []
         labels_list = []
         
-        # Get current y-axis limits to scale line heights
-        y_min, y_max = ax.get_ylim()
+        # Get downbeat times for comparison
+        downbeat_times = set(np.round(self._data["detected_downbeats"], 6))  # Round for float comparison
         
         # Draw beats
         beat_lines = []
         for beat_time in self._data["detected_beats"]:
-            line = ax.axvline(x=beat_time, color=self.beat_color, linewidth=1.5, 
-                             alpha=0.7, linestyle='-', label='Beat')
-            beat_lines.append(line)
+            beat_time_rounded = round(beat_time, 6)
+            # Skip if this beat coincides with a downbeat
+            if beat_time_rounded not in downbeat_times:
+                line = ax3.axvline(x=beat_time, color=self.beat_color, linewidth=1.5, 
+                                 alpha=0.7, linestyle='-', label='Beat')
+                beat_lines.append(line)
         
         if beat_lines:
             lines_list.extend(beat_lines)
@@ -196,8 +204,8 @@ class BeatAccurateLayer(BeatThisLayer):
         # Draw downbeats
         downbeat_lines = []
         for downbeat_time in self._data["detected_downbeats"]:
-            line = ax.axvline(x=downbeat_time, color=self.downbeat_color, linewidth=1.5, 
-                             alpha=0.6, linestyle='--', label='Downbeat')
+            line = ax3.axvline(x=downbeat_time, color=self.downbeat_color, linewidth=1.5, 
+                             alpha=0.6, linestyle='-', label='Downbeat')
             downbeat_lines.append(line)
         
         if downbeat_lines:
