@@ -64,3 +64,31 @@ class Visualizer:
     
     def show(self):
         plt.show()
+    
+    def TurnInToSVG(self, filename: str) -> bool:
+        """
+        Save visualization as an SVG file.
+        
+        """
+        try:
+            if self.fig is None:
+                print("⚠ Error: No figure to save. Call draw() first.")
+                return False
+            
+            # Hardcoded high quality DPI
+            save_dpi = 150
+            
+            # Save figure as SVG
+            self.fig.savefig(
+                filename, 
+                format='svg',
+                dpi=save_dpi,
+                bbox_inches='tight',
+                facecolor='white'
+            )
+            print(f"✅ SVG saved successfully: {filename}")
+            return True
+        
+        except Exception as e:
+            print(f"❌ Error saving SVG: {e}")
+            return False

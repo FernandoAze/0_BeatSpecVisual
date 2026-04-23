@@ -102,7 +102,7 @@ class BeatProbabilityLayer(BeatThisLayer):
         beat_percent = self._normalize_probabilities(self._data["beat_probs"])
         
         line1, = ax2.plot(self._data["beat_times"], beat_percent, '-', 
-                         color=self.color, linewidth=2, label='Beat Probability', alpha=0.9)
+                         color=self.color, linewidth=1, label='Beat Probability', alpha=0.9)
         
         return [line1], ['Beat Probability']
 
@@ -138,7 +138,7 @@ class DownbeatProbabilityLayer(BeatThisLayer):
         downbeat_percent = self._normalize_probabilities(self._data["downbeat_probs"])
         
         line2, = ax2.plot(self._data["beat_times"], downbeat_percent, '-',
-                         color=self.color, linewidth=2, label='Downbeat Probability', alpha=0.9)
+                         color=self.color, linewidth=1, label='Downbeat Probability', alpha=0.9)
         
         return [line2], ['Downbeat Probability']
 
@@ -193,7 +193,7 @@ class BeatAccurateLayer(BeatThisLayer):
             beat_time_rounded = round(beat_time, 6)
             # Skip if this beat coincides with a downbeat
             if beat_time_rounded not in downbeat_times:
-                line = ax3.axvline(x=beat_time, color=self.beat_color, linewidth=1.5, 
+                line = ax3.axvline(x=beat_time, color=self.beat_color, linewidth=1, 
                                  alpha=0.7, linestyle='-', label='Beat')
                 beat_lines.append(line)
         
@@ -204,7 +204,7 @@ class BeatAccurateLayer(BeatThisLayer):
         # Draw downbeats
         downbeat_lines = []
         for downbeat_time in self._data["detected_downbeats"]:
-            line = ax3.axvline(x=downbeat_time, color=self.downbeat_color, linewidth=1.5, 
+            line = ax3.axvline(x=downbeat_time, color=self.downbeat_color, linewidth=1, 
                              alpha=0.6, linestyle='-', label='Downbeat')
             downbeat_lines.append(line)
         
