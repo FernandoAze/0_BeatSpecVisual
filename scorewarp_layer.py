@@ -1,2 +1,2 @@
 class warpedscore:
-    #empty for now.
+    ### MIGRATED TO src/beat_spec_visual/visualization/layers/scorewarp.py

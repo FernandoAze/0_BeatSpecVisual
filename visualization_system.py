@@ -5,6 +5,7 @@ The Visualizer assembles layers together.
 """
 
 from abc import ABC, abstractmethod
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -23,7 +24,7 @@ class Layer(ABC):
     @abstractmethod
     def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:
         pass
-
+        ### MIGRATED TO src/beat_spec_visual/visualization/base.py and visualizer.py
 
 class Visualizer:
     def __init__(self):

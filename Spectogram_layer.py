@@ -9,7 +9,7 @@ from matplotlib.axes import Axes
 from typing import Dict, Any, List, Tuple, Optional
 
 # Import Layer base class
-from visualization_system import Layer
+from beat_spec_visual.visualization.base import Layer
 
 
 class SpectrogramLayer(Layer):

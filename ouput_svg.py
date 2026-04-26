@@ -1,6 +1,7 @@
-from visualization_system import Visualizer
-from Spectogram_layer import SpectrogramLayer
-from BeatThis_layers import (
+# Updated imports for new structure
+from beat_spec_visual.visualization.visualizer import Visualizer
+from beat_spec_visual.visualization.layers.spectrogram import SpectrogramLayer
+from beat_spec_visual.visualization.layers.beat_this import (
     BeatProbabilityLayer,
     DownbeatProbabilityLayer,
     BeatAccurateLayer
