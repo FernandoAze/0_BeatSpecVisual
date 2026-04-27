@@ -1,3 +1,0 @@
-"""
-Beat Visualization Package
-"""
