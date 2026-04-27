@@ -1,7 +1,0 @@
-modusa
-matplotlib
-numpy
-librosa
-soundfile
-torch
-beat_this
