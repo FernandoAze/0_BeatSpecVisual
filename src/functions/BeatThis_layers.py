@@ -10,9 +10,72 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from typing import Dict, Any, List, Tuple, Optional
 
-
 # Import Layer base class
 from .visualization_system import Layer
+
+"""
+Utility class to run BeatThis! beat detection and save results.
+Wraps the run_beat_detection function from beat_this_analysis_gen.py.
+"""
+@staticmethod
+def Run_BeatThis(audio_path="src/input_files/PARTITURAS_MEI/Chopin_op10_no3_p01.wav"):
+    from beat_this.inference import Audio2Frames, Audio2Beats
+    from beat_this.preprocessing import load_audio
+    from pathlib import Path
+    import numpy as np
+    import os
+
+    print("\n" + "="*60)
+    print("BEAT DETECTION")
+    print("="*60)
+    print(f"Checking if audio file exists: {audio_path}")
+
+    if not os.path.isfile(audio_path):
+        print(f"✗ ERROR: Audio file '{audio_path}' not found.")
+        return False
+    try:
+        print("Loading audio file...")
+        waveform, sample_rate = load_audio(audio_path)
+        print(f"✓ Audio loaded. Sample rate: {sample_rate}, Duration: {len(waveform) / sample_rate:.2f}s")
+        
+        print("Initializing model (downloading checkpoint if needed)...")
+        detector = Audio2Frames(checkpoint_path="final0", device="cpu")
+        print("✓ Model initialized. Processing audio...")
+
+        beat_logits, downbeat_logits = detector(waveform, sample_rate)
+        print("✓ Audio processed. Calculating timestamps...")
+
+        hop_length = 441
+        target_sr = 22050
+        beat_times = np.arange(len(beat_logits)) * (hop_length / target_sr)
+        
+        print("Detecting beat positions...")
+        beat_detector = Audio2Beats(checkpoint_path="final0", device="cpu")
+        detected_beats, detected_downbeats = beat_detector(waveform, sample_rate)
+        
+        print(f"✓ Detected {len(detected_beats)} beats and {len(detected_downbeats)} downbeats")
+        
+        # Create absolute path for output
+        module_dir = Path(__file__).parent
+        output_dir = module_dir.parent / "input_files" / "beat_this_analysis"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_file = output_dir / "beat_probs.npz"
+        
+        print("✓ Saving output files...")
+        np.savez(str(output_file), 
+                    beat_times=beat_times, 
+                    beat_probs=beat_logits.numpy(),
+                    downbeat_probs=downbeat_logits.numpy(),
+                    detected_beats=detected_beats,
+                    detected_downbeats=detected_downbeats)
+        print(f"✓ File saved: {output_file}")
+        return True
+
+    except Exception as e:
+        print(f"✗ An error occurred: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
 class BeatThisLayer(Layer):
@@ -26,10 +89,16 @@ class BeatThisLayer(Layer):
         super().__init__(name)
         self._beat_times = None
     
-    def _load_beat_times(self, beat_file: str = "beat_probs.npz") -> bool:
+    def _load_beat_times(self, beat_file: str = None) -> bool:
         """Load beat times from .npz file (shared across all BeatThis! layers)"""
         try:
-            data = np.load(beat_file)
+            # If no file specified, use default path
+            if beat_file is None:
+                from pathlib import Path
+                module_dir = Path(__file__).parent
+                beat_file = module_dir.parent / "input_files" / "beat_this_analysis" / "beat_probs.npz"
+            
+            data = np.load(str(beat_file))
             self._beat_times = data['beat_times']
             return True
         except Exception as e:
@@ -78,11 +147,16 @@ class BeatProbabilityLayer(BeatThisLayer):
         super().__init__(name)
         self.color = color
     
-    def load_data(self, beat_file: str = "beat_probs.npz", **kwargs) -> bool:
+    def load_data(self, beat_file: str = None, **kwargs) -> bool:
+        if beat_file is None:
+            from pathlib import Path
+            module_dir = Path(__file__).parent
+            beat_file = module_dir.parent / "input_files" / "beat_this_analysis" / "beat_probs.npz"
+        
         if not self._load_beat_times(beat_file):
             return False
         try:
-            data = np.load(beat_file)
+            data = np.load(str(beat_file))
             self._data = {
                 "beat_times": self._beat_times,
                 "beat_probs": data['beat_probs'],
@@ -114,11 +188,16 @@ class DownbeatProbabilityLayer(BeatThisLayer):
         super().__init__(name)
         self.color = color
     
-    def load_data(self, beat_file: str = "beat_probs.npz", **kwargs) -> bool:
+    def load_data(self, beat_file: str = None, **kwargs) -> bool:
+        if beat_file is None:
+            from pathlib import Path
+            module_dir = Path(__file__).parent
+            beat_file = module_dir.parent / "input_files" / "beat_this_analysis" / "beat_probs.npz"
+        
         if not self._load_beat_times(beat_file):
             return False
         try:
-            data = np.load(beat_file)
+            data = np.load(str(beat_file))
             self._data = {
                 "beat_times": self._beat_times,
                 "downbeat_probs": data['downbeat_probs'],
@@ -150,17 +229,22 @@ class BeatAccurateLayer(BeatThisLayer):
         self.beat_color = beat_color
         self.downbeat_color = downbeat_color
     
-    def load_data(self, beat_file: str = "beat_probs.npz", **kwargs) -> bool:
+    def load_data(self, beat_file: str = None, **kwargs) -> bool:
         """Load detected beat and downbeat timestamps from .npz file"""
+        if beat_file is None:
+            from pathlib import Path
+            module_dir = Path(__file__).parent
+            beat_file = module_dir.parent / "input_files" / "beat_this_analysis" / "beat_probs.npz"
+        
         if not self._load_beat_times(beat_file):
             return False
         try:
-            data = np.load(beat_file)
+            data = np.load(str(beat_file))
             
             # Check if detected beats exist in file
             if 'detected_beats' not in data or 'detected_downbeats' not in data:
                 print(f"✗ {self.name}: detected_beats or detected_downbeats not found in {beat_file}")
-                print("  Please run beat detection first to generate detected beat positions")
+                print(" Tip: Use Run_BeatThis.run_beat_detection() to generate the .npz file with the correct structure.")
                 return False
             
             self._data = {
@@ -193,8 +277,7 @@ class BeatAccurateLayer(BeatThisLayer):
             beat_time_rounded = round(beat_time, 6)
             # Skip if this beat coincides with a downbeat
             if beat_time_rounded not in downbeat_times:
-                line = ax3.axvline(x=beat_time, color=self.beat_color, linewidth=1, 
-                                 alpha=0.7, linestyle='-', label='Beat')
+                line = ax3.axvline(x=beat_time, color=self.beat_color, linewidth=1, linestyle='-')
                 beat_lines.append(line)
         
         if beat_lines:
@@ -204,14 +287,13 @@ class BeatAccurateLayer(BeatThisLayer):
         # Draw downbeats
         downbeat_lines = []
         for downbeat_time in self._data["detected_downbeats"]:
-            line = ax3.axvline(x=downbeat_time, color=self.downbeat_color, linewidth=1, 
-                             alpha=0.6, linestyle='-', label='Downbeat')
+            line = ax3.axvline(x=downbeat_time, color=self.downbeat_color, linewidth=1, linestyle='-')
             downbeat_lines.append(line)
         
         if downbeat_lines:
             lines_list.extend(downbeat_lines)
             labels_list.append('Downbeat')
         
-        return lines_list, labels_list
+        return lines_list, [] # labels list is making incorrect color of bars, so I just removed it for now.
 
        

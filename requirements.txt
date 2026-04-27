@@ -1,7 +1,7 @@
-modusa
-matplotlib
-numpy
-librosa
-soundfile
-torch
-beat_this
+modusa==6.3.7
+matplotlib==3.10.18
+numpy==2.4.4
+librosa==0.11.0
+soundfile==0.13.1
+torch==2.11.0
+beat_this==0.1
