@@ -15,7 +15,7 @@ from src.functions.BeatThis_layers import (
 )
 from src.functions.warp_score import Onsets_Layer
 
-viz = Visualizer()
+viz = Visualizer()  # Set custom plot size in pixels
 viz.add_layer(SpectrogramLayer())
 viz.add_layer(BeatProbabilityLayer())
 viz.add_layer(Onsets_Layer())
