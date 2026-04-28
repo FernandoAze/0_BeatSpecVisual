@@ -26,17 +26,36 @@ class Layer(ABC):
 
 
 class Visualizer:
-    def __init__(self):
+    def __init__(self, figsize: Optional[Tuple[float, float]] = None, 
+                 plot_size_inPxl: Optional[Tuple[int, int]] = None, 
+                 dpi: int = 96):
+        """
+        Initialize Visualizer with customizable figure size.
+        
+        Args:
+            figsize: Figure size as (width, height) in inches. Default (14, 8) if neither figsize nor pixel_size specified.
+            pixel_size: Figure size as (width, height) in pixels. Converts to inches using dpi parameter.
+            dpi: Dots per inch for pixel-to-inch conversion. Default is 96 (standard screen DPI).
+        """
         self.layers: List[Layer] = []
         self.shared_data: Dict[str, Any] = {}
         self.fig = None
         self.ax = None
         self.all_lines = []
         self.all_labels = []
+        self.dpi = dpi
+        
+        # Convert pixel_size to inches if provided, otherwise use figsize or default
+        if plot_size_inPxl is not None:
+            self.figsize = (plot_size_inPxl[0] / dpi, plot_size_inPxl[1] / dpi)
+        elif figsize is not None:
+            self.figsize = figsize
+        else:
+            self.figsize = (14, 8)  # Default size in inches
     
     def add_layer(self, layer: Layer) -> 'Visualizer':
         self.layers.append(layer)
-        print(f"➕ Added layer: {layer.name}")
+        print(f"Added layer: {layer.name}")
         return self
     
     def load_all_layers(self, **kwargs) -> bool:
@@ -47,7 +66,7 @@ class Visualizer:
         return True
     
     def draw(self) -> Tuple[plt.Figure, plt.Axes]:
-        self.fig, self.ax = plt.subplots(figsize=(14, 8))
+        self.fig, self.ax = plt.subplots(figsize=self.figsize)
         
         for layer in self.layers:
             print(f"Drawing layer: {layer.name}")

@@ -36,6 +36,11 @@ class Onsets_Layer(Layer):
             
             onset_times = [entry['obs_mean_onset'] for entry in data]
             
+            # Subtract the first onset time from all onset times to normalize
+            if onset_times:
+                first_onset = onset_times[0]
+                onset_times = [t - first_onset for t in onset_times]
+            
             self._data = {
                 "onset_times": onset_times,
             }
@@ -53,7 +58,8 @@ class Onsets_Layer(Layer):
         lines = []
 
         for onset in self._data['onset_times']:
-            line = ax.axvline(x=onset, color=self.onset_color, linestyle='--', linewidth=0.5)
+            line = ax.axvline(x=onset, color=self.onset_color,
+            linestyle='--', linewidth=0.2, label='Onset')
             lines.append(line)
         
         if lines:
