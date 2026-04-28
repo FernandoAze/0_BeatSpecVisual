@@ -28,7 +28,7 @@ class Layer(ABC):
 class Visualizer:
     def __init__(self, figsize: Optional[Tuple[float, float]] = None, 
                  plot_size_inPxl: Optional[Tuple[int, int]] = None, 
-                 dpi: int = 96):
+                 dpi: int = 300):
         """
         Initialize Visualizer with customizable figure size.
         
@@ -111,3 +111,117 @@ class Visualizer:
         except Exception as e:
             print(f"❌ Error saving SVG: {e}")
             return False
+    
+    def TurnPlotIntoSVG(self, filename: str, width_px: int, height_px: int, dpi: int = 150) -> bool:
+        """
+        Save visualization as an SVG file with custom dimensions and no padding/axis.
+        
+        Args:
+            filename: Output SVG filename
+            width_px: Width in pixels
+            height_px: Height in pixels
+            dpi: Dots per inch (default 150). Use same DPI for figure creation and saving for efficiency.
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            if self.fig is None:
+                print("⚠ Error: No figure to save. Call draw() first.")
+                return False
+            
+            # Convert pixels to inches using provided DPI
+            figsize_inches = (width_px / dpi, height_px / dpi)
+            
+            # Create new figure with specified DPI
+            fig_export, ax_export = plt.subplots(figsize=figsize_inches, dpi=dpi)
+            
+            # Redraw all layers on the new figure without axis/padding
+            for layer in self.layers:
+                layer.draw(ax_export, self.shared_data)
+            
+            # Remove axis completely
+            ax_export.axis('off')
+
+            # Remove any title that might be set
+            ax_export.set_title('')
+
+            # Remove all margins and padding
+            fig_export.subplots_adjust(left=0, right=1, top=1, bottom=0)
+            
+            # Save figure as SVG with same DPI for consistency
+            fig_export.savefig(
+                filename,
+                format='svg',
+                dpi=dpi,
+                pad_inches=0,
+                facecolor='white'
+            )
+            
+            # Clean up the temporary figure
+            plt.close(fig_export)
+            
+            print(f"✅ SVG saved successfully: {filename} (~{width_px}x{height_px}px @ {dpi}dpi)")
+            return True
+        
+        except Exception as e:
+            print(f"❌ Error saving SVG: {e}")
+            return False
+    
+    def TurnPlotIntoPNG(self, filename: str, width_px: int, height_px: int, dpi: int = 150) -> bool:
+        """
+        Save visualization as PNG with exact pixel dimensions and no padding/axis.
+        
+        Args:
+            filename: Output PNG filename
+            width_px: Width in pixels (exact)
+            height_px: Height in pixels (exact)
+            dpi: Dots per inch (default 150). PNG will be exactly width_px × height_px pixels.
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            if self.fig is None:
+                print("⚠ Error: No figure to save. Call draw() first.")
+                return False
+            
+            # Convert pixels to inches using provided DPI for figure creation
+            figsize_inches = (width_px / dpi, height_px / dpi)
+            
+            # Create new figure with specified DPI
+            fig_export, ax_export = plt.subplots(figsize=figsize_inches, dpi=dpi)
+            
+            # Redraw all layers on the new figure without axis/padding
+            for layer in self.layers:
+                layer.draw(ax_export, self.shared_data)
+            
+            # Remove axis completely
+            ax_export.axis('off')
+
+            # Remove any title that might be set
+            ax_export.set_title('')
+
+            # Remove all margins and padding
+            fig_export.subplots_adjust(left=0, right=1, top=1, bottom=0)
+            
+            # Save figure as PNG with exact dimensions
+            fig_export.savefig(
+                filename,
+                format='png',
+                dpi=dpi,
+                pad_inches=0,
+                facecolor='white'
+            )
+            
+            # Clean up the temporary figure
+            plt.close(fig_export)
+            
+            print(f"✅ PNG saved successfully: {filename} ({width_px}x{height_px}px @ {dpi}dpi)")
+            return True
+        
+        except Exception as e:
+            print(f"❌ Error saving PNG: {e}")
+            return False
+        
+    
