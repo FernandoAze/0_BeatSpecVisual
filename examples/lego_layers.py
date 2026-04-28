@@ -16,7 +16,7 @@ from src.functions.BeatThis_layers import (
 )
 #from scorewarp_layer import warpedscore
 
-viz = Visualizer()
+viz = Visualizer(plot_size_inPxl=(1968, 192))
 audio_path = str(root_dir / "src/input_files/PARTITURAS_MEI/Chopin_op10_no3_p01.wav")
 
 Run_BeatThis(audio_path)  # Creates beat_probs.npz

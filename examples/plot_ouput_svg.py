@@ -17,12 +17,11 @@ from src.functions.warp_score import Onsets_Layer
 
 viz = Visualizer(plot_size_inPxl=(1968, 192))  # Set custom plot size in pixels
 viz.add_layer(SpectrogramLayer())
-viz.add_layer(BeatProbabilityLayer())
-viz.add_layer(Onsets_Layer())
+#viz.add_layer(BeatProbabilityLayer())
+#viz.add_layer(Onsets_Layer())
 viz.load_all_layers(
     audio_path=str(root_dir / "src/input_files/PARTITURAS_MEI/Chopin_op10_no3_p01.wav"),
     beat_file=str(root_dir / "src/input_files/beat_this_analysis/beat_probs.npz")
 )
 fig, ax = viz.draw()
-output_path = root_dir / "output" / "000 SPECTOGRAM.svg"
-viz.TurnInToSVG(str(output_path))
+viz.TurnPlotIntoPNG("PLOT.png", width_px=1968, height_px=192, dpi=600)
