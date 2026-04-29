@@ -24,4 +24,4 @@ viz.load_all_layers(
     beat_file=str(root_dir / "src/input_files/beat_this_analysis/beat_probs.npz")
 )
 fig, ax = viz.draw()
-viz.TurnPlotIntoPNG("PLOT.png", width_px=1968, height_px=192, dpi=600)
+viz.TurnPlotIntoPNG(plot_size=(1968, 192))
