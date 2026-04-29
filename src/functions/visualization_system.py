@@ -120,7 +120,7 @@ class Visualizer:
             filename: Output SVG filename
             width_px: Width in pixels
             height_px: Height in pixels
-            dpi: Dots per inch (default 150). Use same DPI for figure creation and saving for efficiency.
+            dpi: Dots per inch.
         
         Returns:
             bool: True if successful, False otherwise
@@ -209,10 +209,10 @@ class Visualizer:
             # Remove all margins and padding
             fig_export.subplots_adjust(left=0, right=1, top=1, bottom=0)
             
-            # Define output directories
+            # Define output directories (relative to parent folders from script location)
             output_dirs = [
-                'src/input_files',
-                'output'
+                os.path.join(os.path.dirname(__file__), '..', 'input_files'),
+                os.path.join(os.path.dirname(__file__), '..', '..', 'output')
             ]
             
             # Create directories if they don't exist and save to both locations
