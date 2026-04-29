@@ -168,23 +168,27 @@ class Visualizer:
             print(f"❌ Error saving SVG: {e}")
             return False
     
-    def TurnPlotIntoPNG(self, filename: str, width_px: int, height_px: int, dpi: int = 150) -> bool:
+    def TurnPlotIntoPNG(self, filename: str, plot_size: Tuple[int, int], dpi: int = 150) -> bool:
         """
         Save visualization as PNG with exact pixel dimensions and no padding/axis.
         
         Args:
             filename: Output PNG filename
-            width_px: Width in pixels (exact)
-            height_px: Height in pixels (exact)
-            dpi: Dots per inch (default 150). PNG will be exactly width_px × height_px pixels.
+            plot_size: Tuple of (width, height) in pixels (exact)
+            dpi: Dots per inch (default 150). PNG will be exactly width × height pixels.
         
         Returns:
             bool: True if successful, False otherwise
         """
+        import os
+        
         try:
             if self.fig is None:
                 print("⚠ Error: No figure to save. Call draw() first.")
                 return False
+            
+            # Unpack plot_size tuple
+            width_px, height_px = plot_size
             
             # Convert pixels to inches using provided DPI for figure creation
             figsize_inches = (width_px / dpi, height_px / dpi)
@@ -205,19 +209,30 @@ class Visualizer:
             # Remove all margins and padding
             fig_export.subplots_adjust(left=0, right=1, top=1, bottom=0)
             
-            # Save figure as PNG with exact dimensions
-            fig_export.savefig(
-                filename,
-                format='png',
-                dpi=dpi,
-                pad_inches=0,
-                facecolor='white'
-            )
+            # Define output directories
+            output_dirs = [
+                'src/input_files',
+                'output'
+            ]
+            
+            # Create directories if they don't exist and save to both locations
+            for output_dir in output_dirs:
+                os.makedirs(output_dir, exist_ok=True)
+                output_path = os.path.join(output_dir, filename)
+                
+                # Save figure as PNG with exact dimensions
+                fig_export.savefig(
+                    output_path,
+                    format='png',
+                    dpi=dpi,
+                    pad_inches=0,
+                    facecolor='white'
+                )
+                print(f"✅ PNG saved successfully: {output_path} ({width_px}x{height_px}px @ {dpi}dpi)")
             
             # Clean up the temporary figure
             plt.close(fig_export)
             
-            print(f"✅ PNG saved successfully: {filename} ({width_px}x{height_px}px @ {dpi}dpi)")
             return True
         
         except Exception as e:

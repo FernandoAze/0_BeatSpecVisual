@@ -59,10 +59,49 @@ class Onsets_Layer(Layer):
 
         for onset in self._data['onset_times']:
             line = ax.axvline(x=onset, color=self.onset_color,
-            linestyle='--', linewidth=0.2, label='Onset')
+            linestyle='--', linewidth=0.1, label='Onset')
             lines.append(line)
         
         if lines:
             labels = [self.name]
         
         return lines, labels
+    
+    def Retrieve_TmnTmx(_):
+        print("STILL ON THE WORKS")  
+        """
+        A ideia aqui é fazer um método para fazer a diferença da posição x entre o primeiro e o ultimo onset.
+        
+        No scorewarp isto equivale ao tmn e tmx. 
+        
+        Isto é o que vai dar a o espaço onde o espetrograma/plot vai ser desenhado. 
+        """
+    def Combine_PlotPNG_wScore():
+        print("STILL ON THE WORKS")
+        """
+        A ideia desta, é juntar o png do plot com o score em um svg só. 
+
+        Input: input_files/PLOT.png && input_files/.../Chopin_op10_no3_p01-mei.svg
+        Output: output_files/PLOT_WITH_SCORE.svg
+
+        Este método deve juntar o png gerado com Visualizer.TurnInToSVG() com a WarpedScore.svg. 
+        Para isso: 
+            1 - SVG final parte do SVG da warpedScore.svg 
+            (os elementos vao ser acrescentados a este SVG, para manter as proporções do score)
+
+            2 -Retrieve_TmnTmx(_),  determina o tamanho do png e onde ele deve ser posicionado. 
+            Tamanho, Width=tmx-tmn, Height=altura do svg gerado no scorewarp.
+
+            3 - acrescentar um background branco que fica atrás do png e consequentemente, do score.
+            (isto é só para evitar background transparente no início/fim do espetrograma/score)
+
+            4 - Juntar o PLOT.png como um elemento <image> dentro do svg final. 
+
+            5 - Fazer output do svg final.
+
+        O SVG final deve 3 layers na seguinte ordem de sobreposição:
+            1 - background branco (um retângulo branco que cobre toda a área do svg)
+            2 - PLOT.png
+            3 - WarpedScore.svg
+        
+        """
