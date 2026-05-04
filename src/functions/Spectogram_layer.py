@@ -8,20 +8,37 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from typing import Dict, Any, List, Tuple, Optional
 
-# Import Layer base class
+
 from .visualization_system import Layer
+from .Load_Files import LoadFiles
 
 
 class SpectrogramLayer(Layer):
-    def load_data(self, audio_path: str, **kwargs) -> bool:
-
+    def __init__(self, name: str = "Spectrogram"):
+        super().__init__(name)
+        self.loader = LoadFiles()
+    
+    def load_data(self, audio_path: str = None, **kwargs) -> bool:
         # ========================================================
         # LOAD AUDIO & COMPUTE SPECTROGRAM
-        from modusa import load
-        import librosa
         try:
+            from modusa import load
+            import librosa
+            
+            ''' Try to get audio path from singleton first, or use provided parameter '''
+            loaded_audio_path = self.loader.get_data('audio_path')
+            if loaded_audio_path:
+                audio_path = loaded_audio_path
+            elif audio_path is None:
+                return False
+            
+            if audio_path and not self.loader.get_data('audio_path'):
+                if not self.loader.load_audio(audio_path):
+                    return False
+            
+            audio_path = self.loader.get_data('audio_path')
             audio, sr, filename = load.audio(audio_path)
-            print(f"✓ SpectrogramLayer: Loaded {filename}")
+            print(f"✓ {self.name}: Loaded {filename}")
             if audio.ndim == 2:
                 audio = np.mean(audio, axis=0)
             
@@ -57,7 +74,7 @@ class SpectrogramLayer(Layer):
         from modusa import paint
 
         if self._data is None:
-            print("✗ SpectrogramLayer: No data loaded")
+            print(f"✗ {self.name}: No data loaded")
             return [], []
         
         paint.image(
