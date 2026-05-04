@@ -7,36 +7,40 @@ from typing import Dict, Any, List, Tuple, Optional
 import json
 
 from .visualization_system import Layer
+from .Load_Files import LoadFiles
 
 class Onsets_Layer(Layer):
     def __init__(self, name: str = "obs_mean_onsets", onset_color: str = 'yellow'):
         super().__init__(name)
         self.onset_color = onset_color
+        self.loader = LoadFiles()
 
     def load_data(self, maps_file: str = None, **kwargs) -> bool:
-        """Load onsets from MAPS file"""
-        if maps_file is None:
-            from pathlib import Path
-            module_dir = Path(__file__).parent
-            maps_file = module_dir.parent / "input_files" / "PARTITURAS_MEI" / "Chopin_op10_no3_p01-mei.maps.json"
-        
+        """Load onsets from MAPS file via LoadFiles"""
         try:
-            with open(str(maps_file), 'r') as f:
-                data = json.load(f)
+            ''' Try to get maps data from singleton first '''
+            data = self.loader.get_data('maps')
+            if not data:
+                if maps_file and not self.loader.load_maps(maps_file):
+                    return False
+                data = self.loader.get_data('maps')
             
-            # Extract obs_mean_onset times from each object in the array
-            if not isinstance(data, list) or len(data) == 0:
-                print("!!!!Maps file ERROR: Expected a non-empty array!!!!")
+            if not data:
                 return False
             
-            # Check if obs_mean_onset exists in the first entry
+            ''' Extract obs_mean_onset times from each object in the array '''
+            if not isinstance(data, list) or len(data) == 0:
+                print("✗ Maps file ERROR: Expected a non-empty array")
+                return False
+            
+            ''' Check if obs_mean_onset exists in the first entry '''
             if 'obs_mean_onset' not in data[0]:
-                print("!!!!Maps file ERROR: 'obs_mean_onset' not found in data!!!!")
+                print("✗ Maps file ERROR: 'obs_mean_onset' not found in data")
                 return False
             
             onset_times = [entry['obs_mean_onset'] for entry in data]
             
-            # Subtract the first onset time from all onset times to normalize
+            ''' Subtract the first onset time from all onset times to normalize '''
             if onset_times:
                 first_onset = onset_times[0]
                 onset_times = [t - first_onset for t in onset_times]
@@ -59,7 +63,7 @@ class Onsets_Layer(Layer):
 
         for onset in self._data['onset_times']:
             line = ax.axvline(x=onset, color=self.onset_color,
-            linestyle='--', linewidth=0.1, label='Onset')
+            linestyle='--', linewidth=0.5, label='Onset')
             lines.append(line)
         
         if lines:
@@ -69,18 +73,47 @@ class Onsets_Layer(Layer):
     
 
 
-# class Warp_Score_Layer():
+class Warp_Score_Layer():
 
-    # def Retrieve_TmnTmx(_):
-    #     print("STILL ON THE WORKS")  
-    #     """
-    #     A ideia aqui é fazer um método para fazer a diferença da posição x entre o primeiro e o ultimo onset.
+    def __init__(self):
+        self._data = None
+        self.loader = LoadFiles()
+
+    def load_data(self, **kwargs) -> bool:
+        ''' Load maps file containing score alignment data via LoadFiles '''
+        if not self.loader.load_maps():
+            return False
         
-    #     No scorewarp isto equivale ao tmn e tmx. 
+        try:
+            self._data = self.loader.get_data('maps')
+            
+            if not isinstance(self._data, list) or len(self._data) == 0:
+                print("✗ Maps file ERROR: Expected a non-empty array")
+                return False
+            
+            print(f"✓ Warp_Score_Layer: Loaded {len(self._data)} entries from maps file")
+            return True
+        except Exception as e:
+            print(f"✗ Warp_Score_Layer error: {e}")
+            return False
+    
+
+    def Retrieve_First_Onset(self):
+        ''' Retrieve the xml_id at obs_num: 1.0 from maps_file '''
+        ''' Load data if not already loaded '''
+        if self._data is None:
+            if not self.load_data():
+                return None
         
-    #     Isto é o que vai dar a o espaço onde o espetrograma/plot vai ser desenhado. 
-    #     """
+        ''' Find the entry with obs_num == 1.0 '''
+        for entry in self._data:
+            if entry.get('obs_num') == 1.0:
+                return entry.get('xml_id')
         
+        print("✗ Retrieve_First_Onset: Entry with obs_num 1.0 not found")
+        return None
+
+
 #    def Combine_PlotPNG_wScore():
 #         print("STILL ON THE WORKS")
 #         """
