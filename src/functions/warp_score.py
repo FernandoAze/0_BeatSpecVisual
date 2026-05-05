@@ -63,7 +63,7 @@ class Onsets_Layer(Layer):
 
         for onset in self._data['onset_times']:
             line = ax.axvline(x=onset, color=self.onset_color,
-            linestyle='--', linewidth=0.5, label='Onset')
+            linestyle='--', linewidth=0.2, label='Onset')
             lines.append(line)
         
         if lines:
@@ -79,13 +79,17 @@ class Warp_Score_Layer():
         self._data = None
         self.loader = LoadFiles()
 
-    def load_data(self, **kwargs) -> bool:
+    def load_data(self, maps_file: str = None, **kwargs) -> bool:
         ''' Load maps file containing score alignment data via LoadFiles '''
-        if not self.loader.load_maps():
-            return False
+        ''' Try to get maps data from singleton first '''
+        data = self.loader.get_data('maps')
+        if not data:
+            if maps_file and not self.loader.load_maps(maps_file):
+                return False
+            data = self.loader.get_data('maps')
         
         try:
-            self._data = self.loader.get_data('maps')
+            self._data = data
             
             if not isinstance(self._data, list) or len(self._data) == 0:
                 print("✗ Maps file ERROR: Expected a non-empty array")
@@ -98,19 +102,19 @@ class Warp_Score_Layer():
             return False
     
 
-    def Retrieve_First_Onset(self):
+    def Retrieve_First_Onset(self, maps_file: str = None):
         ''' Retrieve the xml_id at obs_num: 1.0 from maps_file '''
         ''' Load data if not already loaded '''
         if self._data is None:
-            if not self.load_data():
+            if not self.load_data(maps_file=maps_file):
                 return None
         
-        ''' Find the entry with obs_num == 1.0 '''
-        for entry in self._data:
-            if entry.get('obs_num') == 1.0:
-                return entry.get('xml_id')
+        ''' Return xml_id from first entry (obs_num is always 1.0) '''
+        if len(self._data) > 0:
+            print (f"✓ First onset xml_id: {self._data[0].get('xml_id')}")
+            return self._data[0].get('xml_id')
         
-        print("✗ Retrieve_First_Onset: Entry with obs_num 1.0 not found")
+        print("✗ Retrieve_First_Onset: No entries in maps data")
         return None
 
 

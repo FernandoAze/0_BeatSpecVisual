@@ -94,6 +94,10 @@ class BeatThisLayer(Layer):
         else:
             ax2 = shared_data["ax2"]
         
+        ''' Match the primary axis x-limits to avoid extra whitespace '''
+        if "times" in shared_data:
+            ax2.set_xlim(shared_data["times"][0], shared_data["times"][-1])
+        
         ax2.set_ylim(0, 100)
         ax2.set_ylabel('Probability (%)', fontweight='bold', fontsize=11)
         return ax2

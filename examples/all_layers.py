@@ -27,7 +27,7 @@ viz = Visualizer(plot_size_inPxl=(1968, 192))
 viz.add_layer(SpectrogramLayer())
 viz.add_layer(BeatProbabilityLayer(color=(1, 0, 0))) # Red with some transparency
 viz.add_layer(DownbeatProbabilityLayer(color=(0, 0, 1)))   # Blue with some transparency
-# viz.add_layer(BeatAccurateLayer(beat_color=(1, 1, 0), downbeat_color=(0, 1, 0, 1))) # Yellow beats, Green downbeats
+viz.add_layer(BeatAccurateLayer(beat_color=(1, 1, 0), downbeat_color=(0, 1, 0, 1))) # Yellow beats, Green downbeats
 viz.add_layer(Onsets_Layer(onset_color=(1,1,1)))  # White onsets 
 
 viz.load_all_layers()
