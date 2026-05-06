@@ -145,99 +145,6 @@ class Warp_Score():
             print("✗ x1 attribute not found in first timeAxis element")
         
         return timeLineBegin, timeLineLength
-    
-    # ======================================================
-    def extract_viewBox_dimensions(self, svg_file: str):
-        svg_tree = ET.parse(svg_file)
-        root = svg_tree.getroot()
-        ns = {'svg': 'http://www.w3.org/2000/svg'}
-
-        ''' Get viewBox from root or nested SVG '''
-        viewbox = root.get('viewBox')
-        if not viewbox:
-            ''' Look for viewBox in nested SVG elements '''
-            nested_svg = root.find(".//svg:svg", ns)
-            if nested_svg is not None:
-                viewbox = nested_svg.get('viewBox')
-
-        if not viewbox:
-            return None
-
-        vb_parts = viewbox.split()
-        vb_x, vb_y, vb_width, vb_height = map(float, vb_parts)
-
-        ''' Get display dimensions from root SVG '''
-        width_str = root.get('width')
-        height_str = root.get('height')
-
-        if width_str:
-            display_width = float(width_str.replace('px', ''))
-        else:
-            display_width = vb_width
-
-        if height_str:
-            display_height = float(height_str.replace('px', ''))
-        else:
-            display_height = vb_height
-        
-        ''' Calculate scale factors '''
-        scale_x = display_width / vb_width
-        scale_y = display_height / vb_height
-        
-        return {
-            'display_width': display_width,
-            'display_height': display_height,
-            'viewbox_width': vb_width,
-            'viewbox_height': vb_height,
-            'scale_x': scale_x,
-            'scale_y': scale_y
-        }    
-    # ======================================================
-
-    def get_first_and_last_note_positions(self, svg_file: str, maps_file: str):
-        ''' Retrieve the x1 attribute (timeline begin) from the first note and last note in SVG using maps file for reference '''
-        if svg_file is None or maps_file is None:
-            print("✗ valid svg_file and maps_file must be provided")
-            return None
-    
-        tree = ET.parse(svg_file)
-        root = tree.getroot()
-        
-        # Load maps data
-        with open(str(maps_file), 'r') as f:
-            maps = json.load(f)
-        
-        if not isinstance(maps, list) or len(maps) == 0:
-            print("✗ Maps file ERROR: Expected a non-empty array")
-            return None
-        
-        first_note_id = maps[0].get('xml_id')
-        last_note_id = maps[-1].get('xml_id')
-        
-        ''' Look up the actual x position in the SVG using xml_id, finding use element inside note '''
-        ns = {'svg': 'http://www.w3.org/2000/svg'}
-        first_element = root.find(f".//*[@data-id='{first_note_id}']//svg:use", ns)
-        last_element = root.find(f".//*[@data-id='{last_note_id}']//svg:use", ns)
-        
-        if first_element is None or last_element is None:
-            print(f"✗ Could not find use elements with ids: {first_note_id}, {last_note_id}")
-            return None
-        
-        first_note_x = float(first_element.get('x', 0))
-        last_note_x = float(last_element.get('x', 0))
-        
-        print(f"✓ First note x1: {first_note_x}, Last note x1: {last_note_x}")
-        
-        return first_note_x, last_note_x
-    
-    def get_timeline_adjusted(self, svg_file: str, maps_file: str):
-        fisrt_note_x, last_note_x = Warp_Score().get_first_and_last_note_positions(svg_file, maps_file)
-        scale_x = Warp_Score().extract_viewBox_dimensions(svg_file)['scale_x']
-        timeline_length_adjusted = (last_note_x - fisrt_note_x) * scale_x
-        first_note_adjusted_x = fisrt_note_x * scale_x
-        last_note_adjusted_x = last_note_x * scale_x
-        print(f"✓ Adjusted first note x: {first_note_adjusted_x}, Adjusted last note x: {last_note_adjusted_x}, Adjusted timeline length: {timeline_length_adjusted}")
-        return first_note_adjusted_x, last_note_adjusted_x, timeline_length_adjusted
 
     def get_timeline_from_notes(self, score_file: str = None, maps_file: str = None):
         ''' Retrieve the x1 attribute (timeline begin) from the first note and last note in SVG using maps file for reference '''
@@ -277,45 +184,184 @@ class Warp_Score():
         
         return first_note_x1, timeline_length
     
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
+# ======================================================
 
+    def extract_viewBox_dimensions(self, svg_file: str, print_output: bool = False):
+        svg_tree = ET.parse(svg_file)
+        root = svg_tree.getroot()
+        ns = {'svg': 'http://www.w3.org/2000/svg'}
 
+        ''' Get viewBox from root or nested SVG '''
+        viewbox = root.get('viewBox')
+        if not viewbox:
+            ''' Look for viewBox in nested SVG elements '''
+            nested_svg = root.find(".//svg:svg", ns)
+            if nested_svg is not None:
+                viewbox = nested_svg.get('viewBox')
 
-
-
-
-    def crop_png(self, maps_file: str = None, png_file: str = None, audio_file: str = None):
-        ''' Crop PNG to end at the position of the last onset time '''
-        if maps_file is None or png_file is None or audio_file is None:
+        if not viewbox:
             return None
+
+        vb_parts = viewbox.split()
+        vb_x, vb_y, vb_width, vb_height = map(float, vb_parts)
+
+        ''' Get display dimensions from root SVG '''
+        width_str = root.get('width')
+        height_str = root.get('height')
+
+        if width_str:
+            display_width = float(width_str.replace('px', ''))
+        else:
+            display_width = vb_width
+
+        if height_str:
+            display_height = float(height_str.replace('px', ''))
+        else:
+            display_height = vb_height
         
+        ''' Calculate scale factors '''
+        scale_x = display_width / vb_width
+        scale_y = display_height / vb_height
+
+        if print_output==True:
+            print(f"✓ SVG viewBox: x={vb_x}, y={vb_y}, width={vb_width}, height={vb_height}")
+            print(f"✓ SVG display dimensions: width={display_width}, height={display_height}")
+            print(f"✓ Scale factors: scale_x={scale_x}, scale_y={scale_y}")
+        else:
+            pass
+
+        return {
+            'display_width': display_width,
+            'display_height': display_height,
+            'viewbox_width': vb_width,
+            'viewbox_height': vb_height,
+            'scale_x': scale_x,
+            'scale_y': scale_y
+        }
+    
+    def extract_ScoreSVG_dimensions(self, svg_file: str, print_output: bool = False):
+
+        svg_tree = ET.parse(svg_file)
+        root = svg_tree.getroot()
+        ns = {'svg': 'http://www.w3.org/2000/svg'}
+
+        ''' Get viewBox from root or nested SVG '''
+        viewbox = root.get('viewBox')
+        if not viewbox:
+            ''' Look for viewBox in nested SVG elements '''
+            nested_svg = root.find(".//svg:svg", ns)
+            if nested_svg is not None:
+                viewbox = nested_svg.get('viewBox')
+        
+        vb_parts = viewbox.split()
+        dimensions = list(map(float, vb_parts))
+        score_width = dimensions[2]
+        score_height = dimensions[3]
+
+        if print_output==True:
+            print(f"Score segment WIDTH: {score_width} ")
+            print(f"Score segment HEIGHT: {score_height} ")
+
+        return score_width, score_height
+
+    def get_first_and_last_note_positions(self, svg_file: str, maps_file: str, print_output: bool = False):
+        ''' Retrieve the x1 attribute (timeline begin) from the first note and last note in SVG using maps file for reference '''
+        if svg_file is None or maps_file is None:
+            print("✗ valid svg_file and maps_file must be provided")
+            return None
+    
+        tree = ET.parse(svg_file)
+        root = tree.getroot()
+        
+        # Load maps data
         with open(str(maps_file), 'r') as f:
-            data = json.load(f)
+            maps = json.load(f)
         
-        if not isinstance(data, list) or len(data) == 0:
+        first_note_id = maps[0].get('xml_id')
+        last_note_id = maps[-1].get('xml_id')
+        
+        ''' Look up the actual x position in the SVG using xml_id, finding use element inside note '''
+        ns = {'svg': 'http://www.w3.org/2000/svg'}
+        first_element = root.find(f".//*[@data-id='{first_note_id}']//svg:use", ns)
+        last_element = root.find(f".//*[@data-id='{last_note_id}']//svg:use", ns)
+        
+        if first_element is None or last_element is None:
+            print(f"✗ Could not find use elements with ids: {first_note_id}, {last_note_id}")
             return None
         
-        last_entry = data[-1]
-        first_entry = data[0]
-        last_onset_time = last_entry.get('obs_mean_onset') - first_entry.get('obs_mean_onset')  # this is how scorewarper works
-        print(f"✓ Last onset time: {last_onset_time} seconds")
+        first_note_x = float(first_element.get('x', 0))
+        last_note_x = float(last_element.get('x', 0))
+        
+        score_timeline_length = last_note_x - first_note_x
 
-        ''' Get PNG dimensions '''
+        if print_output == True:
+            print(f"First note id: {first_note_id}, Last note id: {last_note_id}")
+            print(f"First note x1: {first_note_x}, Last note x1: {last_note_x}")
+            print(f"Score timeline length: {score_timeline_length}")
+
+        return first_note_x, last_note_x, score_timeline_length
+    
+    def get_first_and_last_onsets(self, maps_file: str):
+        ''' Retrieve the first and last onset times from the maps file '''
+        with open(str(maps_file), 'r') as f:
+            data = json.load(f)  
+
+        # Scorewarp offestes the first onset by it's time.
+        first_onset = data[0].get('obs_mean_onset') - data[0].get('obs_mean_onset') 
+        last_onset = data[-1].get('obs_mean_onset') - data[0].get('obs_mean_onset')
+
+        print(f"✓ First onset time: {first_onset}, Last onset time: {last_onset}")
+        
+        return first_onset, last_onset
+
+    
+    def crop_png(self, maps_file: str = None, png_file: str = None, audio_file: str = None):
+        # crops the png so that the spectrogram corresponds to the first and last onsets.
+
+        last_onset_time = self.get_first_and_last_onsets(maps_file)[1]
+
         png_img = Image.open(png_file)
         png_width, png_height = png_img.size
 
-        ''' Get audio duration '''
         audio_data, samplerate = soundfile.read(audio_file)
-        duration = len(audio_data) / samplerate
+        audio_duration = len(audio_data) / samplerate
 
         #  Calculate time per pixel
-        time_per_pixel = png_width/duration
+        time_per_pixel = png_width/audio_duration
         
         #Calculate the pixel of last onset
         last_onset_pixel = int(time_per_pixel * last_onset_time)
 
         cropped_img = png_img.crop((0, 0, last_onset_pixel, png_height))
 
-        ''' Save cropped PNG to output folder '''
+        # Save cropped PNG to output folder 
         root_dir = Path(__file__).parent.parent.parent
         output_dir = root_dir / "output"
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -324,90 +370,64 @@ class Warp_Score():
         cropped_img.save(output_path)
         
         return output_path
-
-    def Combine_PlotPNG_wScore(self, png_plot: str, svg_image: str, maps_json_file: str) -> bool:
+    
+    def Allign_Score_and_PNG(self, png_plot: str, svg_image: str, maps_json_file: str, plot_start: float = 0.0) -> bool:
         try:
-            png_path = Path(png_plot)
-            svg_path = Path(svg_image)
+            ''' Get timeline positions: start, end, and length '''
+            start_and_width = self.get_first_and_last_note_positions(svg_image, maps_json_file)
+            plot_begin = start_and_width[0]
+            timeline_length = start_and_width[2]
             
-            ''' Load PNG image '''
+            #check plot width and height
             png_img = Image.open(png_plot)
             png_width, png_height = png_img.size
-            
-            ''' Parse SVG file to get dimensions '''
-            svg_tree = ET.parse(svg_image)
-            svg_root = svg_tree.getroot()
-            
-            svg_viewbox = svg_root.get('viewBox')
-            if svg_viewbox:
-                vb_parts = svg_viewbox.split()
-                svg_width = float(vb_parts[2])
-                svg_height = float(vb_parts[3])
-            else:
-                svg_width_attr = svg_root.get('width')
-                svg_height_attr = svg_root.get('height')
-                svg_width = float(svg_width_attr.replace('px', '')) if svg_width_attr else png_width
-                svg_height = float(svg_height_attr.replace('px', '')) if svg_height_attr else png_height
-            
-            ''' Create composite SVG - use input SVG as base '''
-            svg_ns = 'http://www.w3.org/2000/svg'
-            ET.register_namespace('', svg_ns)
-            
-            ''' Composite dimensions match SVG dimensions '''
-            composite_width = svg_width
-            composite_height = svg_height
-            
-            ''' Parse input SVG to use as base '''
+
+            ''' Parse SVG file to use as base '''
             svg_tree = ET.parse(svg_image)
             composite_svg = svg_tree.getroot()
             
-            ''' Load maps JSON to get first and last note positions '''
-            with open(maps_json_file, 'r') as f:
-                maps_data = json.load(f)
+            # Get Actual Score segment Dimensions
+            scoreSegment_dims = self.extract_ScoreSVG_dimensions(svg_image)
+            scoreSegment_width = scoreSegment_dims[0]
+            scoreSegment_height = scoreSegment_dims[1]
             
-            if not isinstance(maps_data, list) or len(maps_data) == 0:
-                print("✗ Maps file ERROR: Expected a non-empty array")
-                return False
-            
-            ''' Get first and last note xml_ids '''
-            first_note_id = maps_data[0].get('xml_id')
-            last_note_id = maps_data[-1].get('xml_id')
-            
-            ''' Look up the actual x position in the SVG using data-id, finding use element inside note '''
-            ns = {'svg': 'http://www.w3.org/2000/svg'}
-            first_element = svg_root.find(f".//*[@data-id='{first_note_id}']//svg:use", ns)
-            last_element = svg_root.find(f".//*[@data-id='{last_note_id}']//svg:use", ns)
-            
-            if first_element is None or last_element is None:
-                print(f"✗ Could not find use elements with data-ids: {first_note_id}, {last_note_id}")
-                return False
-            
-            first_note_x1 = float(first_element.get('x', 0))
-            last_note_x1 = float(last_element.get('x', 0))
-            
-            ''' Calculate PNG position and dimensions in SVG viewBox coordinates '''
-            png_x_start = first_note_x1
-            png_width_in_svg = last_note_x1 - first_note_x1
-            png_height_in_svg = svg_height
-            
-            print(f"✓ PNG positioned from x1 {first_note_x1} to {last_note_x1}")
-            print(f"✓ PNG width in SVG coordinates: {png_width_in_svg}")
-            
-            ''' Layer 1: PNG plot as embedded image background (scaled to fit between first and last note) '''
+
+            ''' Register namespace '''
+            svg_ns = 'http://www.w3.org/2000/svg'
+            ET.register_namespace('', svg_ns)
+
+            ''' Embed PNG as base64 '''
             png_buffer = io.BytesIO()
             png_img.save(png_buffer, format='PNG')
             png_base64 = base64.b64encode(png_buffer.getvalue()).decode('utf-8')
+
+            ''' Insert PNG image inside page-margin (within definition-scale SVG) '''
+            ns = {'svg': 'http://www.w3.org/2000/svg'}
             
-            ''' Insert PNG image as first child (background layer) scaled to fit between notes '''
+            ''' Find the nested SVG element with class='definition-scale' '''
+            definition_scale = composite_svg.find(".//svg:svg[@class='definition-scale']", ns)
+            if definition_scale is None:
+                print("✗ Could not find nested <svg> element with class='definition-scale'")
+                return False
+            
+            ''' Find the g element with class='page-margin' inside definition-scale '''
+            page_margin = definition_scale.find(".//svg:g[@class='page-margin']", ns)
+            if page_margin is None:
+                print("✗ Could not find <g> element with class='page-margin' inside definition-scale")
+                return False
+            
+            ''' Create PNG image element '''
             png_image_elem = ET.Element('image', {
-                'x': str(png_x_start),
+                'x': str(plot_begin),
                 'y': '0',
-                'width': str(png_width_in_svg),
-                'height': str(png_height_in_svg),
+                'width': str(timeline_length),
+                'height': str(scoreSegment_height),
                 'href': f'data:image/png;base64,{png_base64}'
             })
-            composite_svg.insert(0, png_image_elem)
             
+            ''' Insert PNG as first child of page-margin '''
+            page_margin.insert(0, png_image_elem)
+
             ''' Save composite SVG '''
             root_dir = Path(__file__).parent.parent.parent
             sys.path.insert(0, str(root_dir))
@@ -419,8 +439,11 @@ class Warp_Score():
             composite_tree.write(output_path, encoding='UTF-8', xml_declaration=True)
             
             print(f"✓ Composite SVG created: {output_path}")
+            print(f"  PNG positioned at x={plot_begin}, width={timeline_length}, height={scoreSegment_height}")
             return True
-            
+        
         except Exception as e:
-            print(f"✗ Combine_PlotPNG_wScore error: {e}")
+            print(f"✗ Allign_Score_and_PNG error: {e}")
             return False
+    
+        
