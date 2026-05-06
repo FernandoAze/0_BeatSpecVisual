@@ -26,7 +26,7 @@ class SpectrogramLayer(Layer):
             import librosa
             
             ''' Try to get audio path from singleton first, or use provided parameter '''
-            loaded_audio_path = self.loader.get_data('audio_path')
+            loaded_audio_path = self.loader.load_audio(audio_path)
             if loaded_audio_path:
                 audio_path = loaded_audio_path
             elif audio_path is None:
@@ -82,7 +82,7 @@ class SpectrogramLayer(Layer):
             self._data["S_db"],
             x=self._data["times"],
             y=self._data["freqs"],
-            c="magma",
+            c="summer",
             o="lower",
             clabel="Magnitude (dB)"
         )

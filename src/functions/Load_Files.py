@@ -49,17 +49,11 @@ class LoadFiles:
             return False
     
     def load_score(self, score_file: str) -> bool:
-        ''' Load score file containing score data '''
+        ''' Load VEROVIO score file (SVG/XML format) containing score data '''
         try:
-            with open(str(score_file), 'r') as f:
-                data = json.load(f)
-            
-            if not isinstance(data, dict) or 'score' not in data:
-                print("✗ Score file ERROR: Expected a dictionary with 'score' key")
-                return False
-            
-            self._data['score'] = data['score']
-            print(f"✓ Loaded score with {len(data['score'])} entries")
+            score_path = Path(score_file)
+            self._data['score_file_path'] = str(score_file)
+            print(f"✓ Loaded SVG score file: {score_path.name}")
             return True
         except Exception as e:
             print(f"✗ Error loading score: {e}")
@@ -120,7 +114,7 @@ class LoadFiles:
         except Exception as e:
             print(f"✗ Error loading SVG files: {e}")
             return False
-    
+        
     def get_data(self, key: str = None):
         ''' 
         Retrieve loaded data. 
@@ -130,8 +124,9 @@ class LoadFiles:
         if key is None:
             return self._data
         return self._data.get(key)
-    
+        
     def clear_data(self):
         ''' Clear all loaded data '''
         self._data = {}
         print("✓ Cleared all loaded data")
+        return False
