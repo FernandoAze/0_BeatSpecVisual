@@ -8,46 +8,39 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from typing import Dict, Any, List, Tuple, Optional
 
-
+# Import Layer base class
 from .visualization_system import Layer
-from .Load_Files import LoadFiles
 
-
-class SpectrogramLayer(Layer):
-    def __init__(self, name: str = "Spectrogram"):
+class Spectrogram(Layer):
+    # =========
+    # INITIALIZATION AND CONFIGURATION
+    def __init__(self, name: str = "Spectrogram", 
+                 freq_window: Tuple[int, int] = (20, 4000),
+                 color_map: str = "magma"):
         super().__init__(name)
-        self.loader = LoadFiles()
-    
-    def load_data(self, audio_path: str = None, **kwargs) -> bool:
+
+        self.freq_window = freq_window
+        self.color_map = color_map
+    # =========
+
+    def load_data(self, audio_path: str, **kwargs) -> bool:
         # ========================================================
         # LOAD AUDIO & COMPUTE SPECTROGRAM
+        from modusa import load
+        import librosa
         try:
-            from modusa import load
-            import librosa
-            
-            ''' Try to get audio path from singleton first, or use provided parameter '''
-            loaded_audio_path = self.loader.load_audio(audio_path)
-            if loaded_audio_path:
-                audio_path = loaded_audio_path
-            elif audio_path is None:
-                return False
-            
-            if audio_path and not self.loader.get_data('audio_path'):
-                if not self.loader.load_audio(audio_path):
-                    return False
-            
-            audio_path = self.loader.get_data('audio_path')
             audio, sr, filename = load.audio(audio_path)
-            print(f"✓ {self.name}: Loaded {filename}")
+            print(f"✓ SpectrogramLayer: Loaded {filename}")
             if audio.ndim == 2:
                 audio = np.mean(audio, axis=0)
             
             winlen = int(0.256 * sr)
             hoplen = winlen // 16
             S_mel = librosa.feature.melspectrogram(y=audio, sr=sr, n_fft=winlen,
-                                                   hop_length=hoplen, n_mels=512)
+                                                   hop_length=hoplen, n_mels=512,
+                                                   fmin=self.freq_window[0], fmax=self.freq_window[1])
             S_db = librosa.power_to_db(S_mel, ref=np.max)
-            mel_freqs = librosa.mel_frequencies(n_mels=512, fmin=20, fmax=4000)
+            mel_freqs = librosa.mel_frequencies(n_mels=512, fmin=self.freq_window[0], fmax=self.freq_window[1])
             times = librosa.frames_to_time(np.arange(S_db.shape[1]), sr=sr, hop_length=hoplen)
             
             self._data = {
@@ -74,7 +67,7 @@ class SpectrogramLayer(Layer):
         from modusa import paint
 
         if self._data is None:
-            print(f"✗ {self.name}: No data loaded")
+            print("✗ SpectrogramLayer: No data loaded")
             return [], []
         
         paint.image(
@@ -82,7 +75,7 @@ class SpectrogramLayer(Layer):
             self._data["S_db"],
             x=self._data["times"],
             y=self._data["freqs"],
-            c="summer",
+            c=self.color_map,
             o="lower",
             clabel="Magnitude (dB)"
         )

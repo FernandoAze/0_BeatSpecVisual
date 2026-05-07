@@ -85,6 +85,9 @@ class Visualizer:
         plt.show()
     
     def TurnInToSVG(self, filename: str) -> bool:
+    # =====================
+    # ACHO QUE ESTE È LIXO
+    # =====================
         """
         Save visualization as an SVG file.
         
@@ -126,10 +129,6 @@ class Visualizer:
             bool: True if successful, False otherwise
         """
         try:
-            if self.fig is None:
-                print("⚠ Error: No figure to save. Call draw() first.")
-                return False
-            
             # Convert pixels to inches using provided DPI
             figsize_inches = (width_px / dpi, height_px / dpi)
             
@@ -183,10 +182,6 @@ class Visualizer:
         import os
         
         try:
-            if self.fig is None:
-                print("⚠ Error: No figure to save. Call draw() first.")
-                return False
-            
             # Unpack plot_size tuple
             width_px, height_px = plot_size
             
@@ -233,7 +228,7 @@ class Visualizer:
             # Clean up the temporary figure
             plt.close(fig_export)
             
-            return True
+            return output_path
         
         except Exception as e:
             print(f"❌ Error saving PNG: {e}")
