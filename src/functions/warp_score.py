@@ -16,28 +16,22 @@ import soundfile
 
 
 from .visualization_system import Layer
-from .Load_Files import LoadFiles
 
 class Onsets_Layer(Layer):
     def __init__(self, name: str = "obs_mean_onsets", onset_color: str = 'yellow'):
         super().__init__(name)
         self.onset_color = onset_color
-        self.loader = LoadFiles()
 
     def load_data(self, maps_file: str = None, **kwargs) -> bool:
-        """Load onsets from MAPS file via LoadFiles"""
+        """Load onsets from MAPS JSON file"""
         try:
-            ''' Try to get maps data from singleton first '''
-            data = self.loader.get_data('maps')
-            if not data:
-                if maps_file and not self.loader.load_maps(maps_file):
-                    return False
-                data = self.loader.get_data('maps')
-            
-            if not data:
+            if maps_file is None:
+                print(f"✗ {self.name}: Maps file path must be provided")
                 return False
             
-            ''' Extract obs_mean_onset times from each object in the array '''
+            with open(str(maps_file), 'r') as f:
+                data = json.load(f)
+            
             if not isinstance(data, list) or len(data) == 0:
                 print("✗ Maps file ERROR: Expected a non-empty array")
                 return False
@@ -86,132 +80,26 @@ class Warp_Score():
 
     def __init__(self):
         self._data = None
-        self.loader = LoadFiles()
 
     def load_data(self, maps_file: str = None, **kwargs) -> bool:
-        ''' Load maps file containing score alignment data via LoadFiles '''
-        ''' Try to get maps data from singleton first '''
-        data = self.loader.load_maps(maps_file)
-        if not data:
-            if maps_file and not self.loader.load_maps(maps_file):
-                return False
-            data = self.loader.load_maps('maps')
-        
+        ''' Load maps file containing score alignment data '''
         try:
-            self._data = data
+            if maps_file is None:
+                print("✗ Warp_Score: Maps file path must be provided")
+                return False
+            
+            with open(str(maps_file), 'r') as f:
+                self._data = json.load(f)
             
             if not isinstance(self._data, list) or len(self._data) == 0:
                 print("✗ Maps file ERROR: Expected a non-empty array")
                 return False
             
-            print(f"✓ Warp_Score_Layer: Loaded {len(self._data)} entries from maps file")
+            print(f"✓ Warp_Score: Loaded {len(self._data)} entries from maps file")
             return True
         except Exception as e:
-            print(f"✗ Warp_Score_Layer error: {e}")
+            print(f"✗ Warp_Score error: {e}")
             return False
-        
-    
-
-    def get_Timeline_Length(self, score_file: str = None):
-        ''' Retrieve the x1 attribute (timeline begin) from the first timeAxis element in SVG '''
-        if score_file is None:
-            print("✗ valid score_file must be provided")
-            return None
-    
-        tree = ET.parse(score_file)
-        root = tree.getroot()
-        
-        #Find the timeAxis group with namespace
-        ns = {'svg': 'http://www.w3.org/2000/svg'}
-        timeAxis = root.find(".//svg:g[@class='timeAxis']", ns)
-        if timeAxis is None:
-            print("✗ timeAxis group not found in SVG")
-            return None
-        
-        # Get the first and last child element
-        firstElement = timeAxis[0]
-        lastElement = timeAxis[-1]
-        
-        # Extract x values
-        timeLineBegin = firstElement.get('x1')
-        timeLineEnd = lastElement.get('x')
-        timeLineLength = float(timeLineEnd) - float(timeLineBegin)
-
-        if timeLineBegin:
-            print(f"✓ Timeline begin x1: {timeLineBegin}")
-            print(f"✓ Timeline last x: {timeLineEnd}")
-            print(f"✓ Timeline length: {timeLineLength}")
-        else:
-            print("✗ x1 attribute not found in first timeAxis element")
-        
-        return timeLineBegin, timeLineLength
-
-    def get_timeline_from_notes(self, score_file: str = None, maps_file: str = None):
-        ''' Retrieve the x1 attribute (timeline begin) from the first note and last note in SVG using maps file for reference '''
-        if score_file is None or maps_file is None:
-            print("✗ valid score_file and maps_file must be provided")
-            return None
-    
-        tree = ET.parse(score_file)
-        root = tree.getroot()
-        
-        # Load maps data
-        with open(str(maps_file), 'r') as f:
-            maps = json.load(f)
-        
-        if not isinstance(maps, list) or len(maps) == 0:
-            print("✗ Maps file ERROR: Expected a non-empty array")
-            return None
-        
-        first_note_id = maps[0].get('xml_id')
-        last_note_id = maps[-1].get('xml_id')
-        
-        ''' Look up the actual x position in the SVG using xml_id, finding use element inside note '''
-        ns = {'svg': 'http://www.w3.org/2000/svg'}
-        first_element = root.find(f".//*[@data-id='{first_note_id}']//svg:use", ns)
-        last_element = root.find(f".//*[@data-id='{last_note_id}']//svg:use", ns)
-        
-        if first_element is None or last_element is None:
-            print(f"✗ Could not find use elements with ids: {first_note_id}, {last_note_id}")
-            return None
-        
-        first_note_x1 = float(first_element.get('x', 0))
-        last_note_x1 = float(last_element.get('x', 0))
-        
-        timeline_length = last_note_x1 - first_note_x1
-
-        print(f"✓ Timeline from notes: start x1: {first_note_x1}, end x1: {last_note_x1}, length: {timeline_length}")
-        
-        return first_note_x1, timeline_length
-    
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
-# ======================================================
 
     def extract_viewBox_dimensions(self, svg_file: str, print_output: bool = False):
         svg_tree = ET.parse(svg_file)
