@@ -24,6 +24,7 @@ LoadFiles class in src/functions/Load_Files.py is used to retrieve files that ar
 - Comments that you add shall be always with ''' ''' (either inline or in block), those comments you can remove if you find it fit to do so.
 - Never add comments with # only with add coments with '''
 - dont add Debbuging features (like unecessary print()'s ), unless when actually requested.
-- Prioritize using depandancies already in requirements.txt, if you need new dependancies remeber to add them to requirements.txt
+- Prioritize using depandancies already in requirements.txt, if you need new dependancies remeber to add them to requirements.txt and tell me before implementing.
+- If you see comments written in Portuguese, also dont delete them.
 
 
