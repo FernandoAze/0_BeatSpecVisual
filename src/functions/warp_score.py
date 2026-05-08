@@ -74,7 +74,47 @@ class Onsets_Layer(Layer):
         
         return lines, labels
     
-
+    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
+        '''Convert onsets to SVG dashed vertical lines'''
+        if self._data is None or "svg_context" not in shared_data:
+            return None
+        
+        ctx = shared_data["svg_context"]
+        onset_times = self._data.get("onset_times", [])
+        
+        if len(onset_times) == 0:
+            return None
+        
+        lines = []
+        color_hex = self._rgb_to_hex(self.onset_color)
+        
+        ''' Draw dashed vertical lines for each onset '''
+        for onset_time in onset_times:
+            if ctx["x_max"] == ctx["x_min"]:
+                x = 0
+            else:
+                x = ((onset_time - ctx["x_min"]) / (ctx["x_max"] - ctx["x_min"])) * ctx["width_px"]
+            
+            lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{color_hex}" stroke-width="0.2" stroke-dasharray="2,2"/>')
+        
+        svg_group = f'''  <g id="{self.name}" class="layer onsets">
+{chr(10).join(lines)}
+  </g>'''
+        
+        return svg_group
+    
+    def _rgb_to_hex(self, rgb):
+        '''Convert RGB tuple (0-1) or matplotlib color to hex'''
+        if isinstance(rgb, tuple) and len(rgb) >= 3:
+            r, g, b = [int(c * 255) if c <= 1 else int(c) for c in rgb[:3]]
+            return f'#{r:02x}{g:02x}{b:02x}'
+        ''' Handle matplotlib color names '''
+        try:
+            from matplotlib.colors import to_hex
+            return to_hex(rgb)
+        except:
+            return '#000000'
+    
 
 class Warp_Score():
 
@@ -216,8 +256,8 @@ class Warp_Score():
 
         return first_note_x, last_note_x, score_timeline_length
     
-    def get_first_and_last_onsets(self, maps_file: str):
-        ''' Retrieve the first and last onset times from the maps file '''
+    def get_first_and_last_onsets(self, maps_file: str, print_output: bool = False):
+        # Retrieve the first and last onset times from the maps file
         with open(str(maps_file), 'r') as f:
             data = json.load(f)  
 
@@ -225,23 +265,22 @@ class Warp_Score():
         first_onset = data[0].get('obs_mean_onset') - data[0].get('obs_mean_onset') 
         last_onset = data[-1].get('obs_mean_onset') - data[0].get('obs_mean_onset')
 
-        print(f"✓ First onset time: {first_onset}, Last onset time: {last_onset}")
+        if print_output == True:
+            print(f"✓ First onset time: {first_onset}, Last onset time: {last_onset}")
         
         return first_onset, last_onset
 
     
-    def crop_png(self, maps_file: str = None, png_file: str = None, audio_file: str = None):
+    def crop_png(self, maps_file: str = None, png_file: str = None, audio_file: str = None, print_output: bool = False) -> Optional[str]:
         # crops the png so that the spectrogram corresponds to the first and last onsets.
 
-        last_onset_time = self.get_first_and_last_onsets(maps_file)[1]
-
+        last_onset_time = self.get_first_and_last_onsets(maps_file, print_output)[1]
         png_img = Image.open(png_file)
         png_width, png_height = png_img.size
 
+        #  Calculate time per pixel
         audio_data, samplerate = soundfile.read(audio_file)
         audio_duration = len(audio_data) / samplerate
-
-        #  Calculate time per pixel
         time_per_pixel = png_width/audio_duration
         
         #Calculate the pixel of last onset
@@ -259,79 +298,74 @@ class Warp_Score():
         
         return output_path
     
-    def Allign_Score_and_PNG(self, png_plot: str, svg_image: str, maps_json_file: str, plot_start: float = 0.0) -> bool:
-        try:
-            ''' Get timeline positions: start, end, and length '''
-            start_and_width = self.get_first_and_last_note_positions(svg_image, maps_json_file)
-            plot_begin = start_and_width[0]
-            timeline_length = start_and_width[2]
-            
-            #check plot width and height
-            png_img = Image.open(png_plot)
-            png_width, png_height = png_img.size
-
-            ''' Parse SVG file to use as base '''
-            svg_tree = ET.parse(svg_image)
-            composite_svg = svg_tree.getroot()
-            
-            # Get Actual Score segment Dimensions
-            scoreSegment_dims = self.extract_ScoreSVG_dimensions(svg_image)
-            scoreSegment_width = scoreSegment_dims[0]
-            scoreSegment_height = scoreSegment_dims[1]
-            
-
-            ''' Register namespace '''
-            svg_ns = 'http://www.w3.org/2000/svg'
-            ET.register_namespace('', svg_ns)
-
-            ''' Embed PNG as base64 '''
-            png_buffer = io.BytesIO()
-            png_img.save(png_buffer, format='PNG')
-            png_base64 = base64.b64encode(png_buffer.getvalue()).decode('utf-8')
-
-            ''' Insert PNG image inside page-margin (within definition-scale SVG) '''
-            ns = {'svg': 'http://www.w3.org/2000/svg'}
-            
-            ''' Find the nested SVG element with class='definition-scale' '''
-            definition_scale = composite_svg.find(".//svg:svg[@class='definition-scale']", ns)
-            if definition_scale is None:
-                print("✗ Could not find nested <svg> element with class='definition-scale'")
-                return False
-            
-            ''' Find the g element with class='page-margin' inside definition-scale '''
-            page_margin = definition_scale.find(".//svg:g[@class='page-margin']", ns)
-            if page_margin is None:
-                print("✗ Could not find <g> element with class='page-margin' inside definition-scale")
-                return False
-            
-            ''' Create PNG image element '''
-            png_image_elem = ET.Element('image', {
-                'x': str(plot_begin),
-                'y': '0',
-                'width': str(timeline_length),
-                'height': str(scoreSegment_height),
-                'href': f'data:image/png;base64,{png_base64}'
-            })
-            
-            ''' Insert PNG as first child of page-margin '''
-            page_margin.insert(0, png_image_elem)
-
-            ''' Save composite SVG '''
-            root_dir = Path(__file__).parent.parent.parent
-            sys.path.insert(0, str(root_dir))
-            output_dir = root_dir / "output"
-            output_dir.mkdir(parents=True, exist_ok=True)
-            output_path = str(output_dir / "composite.svg")
-            
-            composite_tree = ET.ElementTree(composite_svg)
-            composite_tree.write(output_path, encoding='UTF-8', xml_declaration=True)
-            
-            print(f"✓ Composite SVG created: {output_path}")
-            print(f"  PNG positioned at x={plot_begin}, width={timeline_length}, height={scoreSegment_height}")
-            return True
-        
-        except Exception as e:
-            print(f"✗ Allign_Score_and_PNG error: {e}")
-            return False
+    def Allign_Score_and_PNG(self, png_plot: str, svg_image: str, maps_json_file: str, print_output: bool = False) -> bool:
     
+        ''' Get timeline positions: start, end, and length '''
+        start_and_width = self.get_first_and_last_note_positions(svg_image, maps_json_file, print_output)
+        plot_begin = start_and_width[0]
+        timeline_length = start_and_width[2]
         
+        #check plot width and height
+        png_img = Image.open(png_plot)
+        png_width, png_height = png_img.size
+
+        ''' Parse SVG file to use as base '''
+        svg_tree = ET.parse(svg_image)
+        composite_svg = svg_tree.getroot()
+        
+        # Get Actual Score segment Dimensions
+        scoreSegment_dims = self.extract_ScoreSVG_dimensions(svg_image)
+        scoreSegment_width = scoreSegment_dims[0]
+        scoreSegment_height = scoreSegment_dims[1]
+        
+
+        ''' Register namespace '''
+        svg_ns = 'http://www.w3.org/2000/svg'
+        ET.register_namespace('', svg_ns)
+
+        ''' Embed PNG as base64 '''
+        png_buffer = io.BytesIO()
+        png_img.save(png_buffer, format='PNG')
+        png_base64 = base64.b64encode(png_buffer.getvalue()).decode('utf-8')
+
+        # This tells the parser: "all elements in this document follow the SVG standard." 
+        # It ensures there's no confusion if you mix SVG with other XML formats.
+        ns = {'svg': 'http://www.w3.org/2000/svg'}
+        
+        # Inside:   class='definition-scale'
+        # Find the <g> element with:    class='page-margin' 
+        definition_scale = composite_svg.find(".//svg:svg[@class='definition-scale']", ns)
+        if definition_scale is None:
+            print("✗ Could not find nested <svg> element with class='definition-scale'")
+            return False
+        page_margin = definition_scale.find(".//svg:g[@class='page-margin']", ns)
+        if page_margin is None:
+            print("✗ Could not find <g> element with class='page-margin' inside definition-scale")
+            return False
+        
+        # Create PNG image element
+        png_image_elem = ET.Element('image', {
+            'x': str(plot_begin),
+            'y': '0',
+            'width': str(timeline_length),
+            'height': str(scoreSegment_height),
+            'href': f'data:image/png;base64,{png_base64}'
+        })
+        
+        ''' Insert PNG as first child of page-margin '''
+        page_margin.insert(0, png_image_elem)
+
+        ''' Save composite SVG '''
+        root_dir = Path(__file__).parent.parent.parent
+        sys.path.insert(0, str(root_dir))
+        output_dir = root_dir / "output"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = str(output_dir / "composite.svg")
+        
+        composite_tree = ET.ElementTree(composite_svg)
+        composite_tree.write(output_path, encoding='UTF-8', xml_declaration=True)
+        
+        print(f"✓ Composite SVG created: {output_path}")
+        return True
+
+    

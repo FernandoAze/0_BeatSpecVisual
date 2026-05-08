@@ -117,8 +117,67 @@ class BeatLayer(Layer):
         ax2.set_ylabel('Probability (%)', fontweight='bold', fontsize=11)
         return ax2
     
-
+    def _rgb_to_hex(self, rgb):
+        '''Convert RGB tuple (0-1) or matplotlib color to hex'''
+        if isinstance(rgb, tuple) and len(rgb) >= 3:
+            r, g, b = [int(c * 255) if c <= 1 else int(c) for c in rgb[:3]]
+            return f'#{r:02x}{g:02x}{b:02x}'
+        ''' Handle matplotlib color names '''
+        try:
+            from matplotlib.colors import to_hex
+            return to_hex(rgb)
+        except:
+            return '#000000'
     
+    def _time_to_pixel_x(self, t: float, ctx: Dict) -> float:
+        '''Convert time coordinate to pixel X coordinate'''
+        if ctx["x_max"] == ctx["x_min"]:
+            return 0
+        return ((t - ctx["x_min"]) / (ctx["x_max"] - ctx["x_min"])) * ctx["width_px"]
+    
+    def _prob_to_pixel_y(self, prob: float, ctx: Dict) -> float:
+        '''Convert probability (0-100) to pixel Y coordinate (inverted for SVG)'''
+        ''' SVG Y increases downward, but we want probability to increase upward '''
+        y_normalized = 1 - (prob / 100.0)
+        return y_normalized * ctx["height_px"]
+    
+    def _probability_to_svg_group(self, shared_data: Dict[str, Any], prob_key: str, svg_class: str, opacity: float = 1.0) -> Optional[str]:
+        '''
+        Generic method to convert probability curve to SVG polyline.
+        
+        Args:
+            shared_data: Shared visualization data
+            prob_key: Key for probability data in self._data (e.g., 'beat_probs', 'downbeat_probs')
+            svg_class: CSS class for the SVG group (e.g., 'beat-probability')
+            opacity: Optional opacity for the polyline (default 1.0)
+        '''
+        if self._data is None or "svg_context" not in shared_data:
+            return None
+        
+        ctx = shared_data["svg_context"]
+        beat_times = self._data.get("beat_times", [])
+        probs = self._normalize_probabilities(self._data.get(prob_key, []))
+        
+        if len(beat_times) == 0:
+            return None
+        
+        ''' Convert data points to SVG coordinates '''
+        points = []
+        for t, prob in zip(beat_times, probs):
+            x = self._time_to_pixel_x(t, ctx)
+            y = self._prob_to_pixel_y(prob, ctx)
+            points.append(f"{x:.2f},{y:.2f}")
+        
+        points_str = " ".join(points)
+        color_hex = self._rgb_to_hex(self.color)
+        opacity_attr = f' opacity="{opacity}"' if opacity < 1.0 else ''
+        
+        svg_group = f'''  <g id="{self.name}" class="layer {svg_class}">
+    <polyline points="{points_str}" stroke="{color_hex}" stroke-width="0.5" fill="none"{opacity_attr}/>
+  </g>'''
+        
+        return svg_group
+
 class BeatProbabilityLayer(BeatLayer):
     """Visualizes beat probability outputs from BeatThis! algorithm."""
     
@@ -145,6 +204,10 @@ class BeatProbabilityLayer(BeatLayer):
         line, = ax2.plot(self._data["beat_times"], beat_percent, '-', 
                         color=self.color, linewidth=0.5, label='Beat Probability')
         return [line], ['Beat Probability']
+    
+    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
+        '''Convert beat probability curve to SVG polyline'''
+        return self._probability_to_svg_group(shared_data, 'beat_probs', 'beat-probability')
 
 
 class DownbeatProbabilityLayer(BeatLayer):
@@ -173,6 +236,10 @@ class DownbeatProbabilityLayer(BeatLayer):
         line, = ax2.plot(self._data["beat_times"], downbeat_percent, '-',
                         color=self.color, linewidth=0.5, label='Downbeat Probability', alpha=0.9)
         return [line], ['Downbeat Probability']
+    
+    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
+        '''Convert downbeat probability curve to SVG polyline'''
+        return self._probability_to_svg_group(shared_data, 'downbeat_probs', 'downbeat-probability', opacity=0.9)
 
 class BeatAccurateLayer(BeatLayer):
     """Visualizes detected beat times as vertical lines."""
@@ -213,6 +280,39 @@ class BeatAccurateLayer(BeatLayer):
         if downbeat_lines:
             labels.append('Downbeat')
         
-        return beat_lines + downbeat_lines, labels 
+        return beat_lines + downbeat_lines, labels
+    
+    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
+        '''Convert detected beats/downbeats to SVG vertical lines'''
+        if self._data is None or "svg_context" not in shared_data:
+            return None
+        
+        ctx = shared_data["svg_context"]
+        beat_times = self._data.get("detected_beats", [])
+        downbeat_times = self._data.get("detected_downbeats", [])
+        
+        if len(beat_times) == 0 and len(downbeat_times) == 0:
+            return None
+        
+        lines = []
+        downbeat_set = set(np.round(downbeat_times, 6))
+        
+        ''' Draw regular beats '''
+        beat_color_hex = self._rgb_to_hex(self.beat_color)
+        for t in beat_times:
+            if round(t, 6) not in downbeat_set:
+                x = self._time_to_pixel_x(t, ctx)
+                lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{beat_color_hex}" stroke-width="1"/>')
+        
+        ''' Draw downbeats '''
+        downbeat_color_hex = self._rgb_to_hex(self.downbeat_color)
+        for t in downbeat_times:
+            x = self._time_to_pixel_x(t, ctx)
+            lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{downbeat_color_hex}" stroke-width="1"/>')
+        
+        svg_group = f'''  <g id="{self.name}" class="layer beat-accurate">
+{chr(10).join(lines)}
+  </g>'''
+        
+        return svg_group
 
-       
