@@ -74,6 +74,9 @@ class Onsets_Layer(Layer):
         
         return lines, labels
     
+    #========================================================
+    # Methods for Layers that are vector based for SVG output
+    #========================================================
     def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
         '''Convert onsets to SVG dashed vertical lines'''
         if self._data is None or "svg_context" not in shared_data:
@@ -102,7 +105,7 @@ class Onsets_Layer(Layer):
   </g>'''
         
         return svg_group
-    
+
     def _rgb_to_hex(self, rgb):
         '''Convert RGB tuple (0-1) or matplotlib color to hex'''
         if isinstance(rgb, tuple) and len(rgb) >= 3:
@@ -114,7 +117,9 @@ class Onsets_Layer(Layer):
             return to_hex(rgb)
         except:
             return '#000000'
-    
+    #========================================================
+    # Methods for Layers that are vector based for SVG output
+    #========================================================
 
 class Warp_Score():
 
@@ -218,6 +223,27 @@ class Warp_Score():
             print(f"Score segment HEIGHT: {score_height} ")
 
         return score_width, score_height
+    
+    def scale_Factor(self, score_svg_file: str, print_output: bool = False):
+        ''' Calculate scale factor between score SVG dimensions and PNG dimensions '''
+        svg_dims = self.extract_ScoreSVG_dimensions(score_svg_file, print_output)
+        score_width = svg_dims[0]
+        score_height = svg_dims[1]
+
+        ''' Get actual SVG display dimensions '''
+        viewbox_dims = self.extract_viewBox_dimensions(score_svg_file, print_output)
+        svg_true_width = viewbox_dims['display_width']
+        svg_true_height = viewbox_dims['display_height']
+
+        scale_x = score_width / svg_true_width
+        scale_y = score_height / svg_true_height
+        scale_factor=(scale_x, scale_y)
+
+        if print_output:
+            print(f"✓ Scale factor calculated: scale_x={scale_x}, scale_y={scale_y}")
+        
+        return  scale_factor
+    
 
     def get_first_and_last_note_positions(self, svg_file: str, maps_file: str, print_output: bool = False):
         ''' Retrieve the x1 attribute (timeline begin) from the first note and last note in SVG using maps file for reference '''
@@ -368,4 +394,64 @@ class Warp_Score():
         print(f"✓ Composite SVG created: {output_path}")
         return True
 
-    
+    def combine_AllignedScore_with_Layers(self, filename: str, alligned_svg: str, layers_svg: str, scale_factor: tuple, print_output: bool = False):
+        ''' Combine aligned score SVG with visualization layers from TurnLayersIntoSVG '''
+        try:
+            ''' Parse both SVG files '''
+            aligned_tree = ET.parse(alligned_svg)
+            aligned_root = aligned_tree.getroot()
+            
+            layers_tree = ET.parse(layers_svg)
+            layers_root = layers_tree.getroot()
+            
+            ''' Define SVG namespace '''
+            svg_ns = 'http://www.w3.org/2000/svg'
+            ns = {'svg': svg_ns}
+            
+            ''' Find the page-margin group in the aligned SVG '''
+            definition_scale = aligned_root.find(".//svg:svg[@class='definition-scale']", ns)
+            if definition_scale is None:
+                print("✗ Could not find nested <svg> element with class='definition-scale'")
+                return False
+            
+            page_margin = definition_scale.find(".//svg:g[@class='page-margin']", ns)
+            if page_margin is None:
+                print("✗ Could not find <g> element with class='page-margin'")
+                return False
+            
+            ''' Extract all layer groups from the layers SVG '''
+            layer_groups = layers_root.findall(".//svg:g", ns)
+            
+            if len(layer_groups) > 0:
+                ''' Insert layer groups after the PNG (starting at index 1) '''
+                for i, layer_group in enumerate(layer_groups):
+                    ''' Deep copy the layer group to avoid modifying the original tree '''
+                    layer_copy = ET.fromstring(ET.tostring(layer_group))
+                    ''' Apply scale transform to layer group '''
+                    current_transform = layer_copy.get('transform', '')
+                    new_transform = f"scale({scale_factor[0]}, {scale_factor[1]}) {current_transform}".strip()
+                    layer_copy.set('transform', new_transform)
+                    page_margin.insert(1 + i, layer_copy)
+                if print_output:
+                    print(f"✓ Added {len(layer_groups)} layer groups to the aligned SVG")
+                    print(f"✓ Scale factors applied: scale_x={scale_factor[0]}, scale_y={scale_factor[1]}")
+            else:
+                if print_output:
+                    print("⚠ Warning: No layer groups found in layers SVG")
+            
+            ''' Save the combined SVG to output folder '''
+            root_dir = Path(__file__).parent.parent.parent
+            output_dir = root_dir / "output"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = str(output_dir / filename)
+            
+            aligned_tree.write(output_path, encoding='UTF-8', xml_declaration=True)
+            
+            if print_output:
+                print(f"✓ Combined SVG created: {output_path}")
+            return True
+            
+        except Exception as e:
+            print(f"✗ Error combining SVG files: {e}")
+            return False
+
