@@ -30,7 +30,7 @@ class Spectrogram(Layer):
         import librosa
         try:
             audio, sr, filename = load.audio(audio_path)
-            print(f"✓ SpectrogramLayer: Loaded {filename}")
+            
             if audio.ndim == 2:
                 audio = np.mean(audio, axis=0)
             
@@ -51,6 +51,7 @@ class Spectrogram(Layer):
                 "filename": filename,
                 "audio": audio
             }
+            print(f"✓ SpectrogramLayer: Loaded {filename}")
             return True
         # LOAD AUDIO & COMPUTE SPECTROGRAM
         # ========================================================
