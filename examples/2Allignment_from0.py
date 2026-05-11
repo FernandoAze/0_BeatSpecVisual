@@ -29,22 +29,28 @@ stuff_to_console=False
 
 
 # Define input file paths 
-the_audio_file = str(root_dir / input_parent_dir / "Chopin_op10_no3_p11.wav")
-svg_score = str(root_dir / input_parent_dir / "Chopin_op10_no3_p11-mei.maps.json.svg")
-the_maps_file = str(root_dir / input_parent_dir / "Chopin_op10_no3_p11-mei.maps.json")
-beat_output_path=str(root_dir / input_parent_dir / "CHOPIN_BEAT.npz")
+# the_audio_file = str(root_dir / input_parent_dir / "Chopin_op10_no3_p11.wav")
+# svg_score = str(root_dir / input_parent_dir / "Chopin_op10_no3_p11-mei.maps.json.svg")
+# the_maps_file = str(root_dir / input_parent_dir / "Chopin_op10_no3_p11-mei.maps.json")
+# beat_output_path=str(root_dir / input_parent_dir / "CHOPIN_BEAT.npz")
+
+the_audio_file = str(root_dir / "src/input_files/PARTITURAS_MEI" / "Chopin_op10_no3_p01.wav")
+svg_score = str(root_dir / "src/input_files/PARTITURAS_MEI" / "Chopin_Op10_3_1.mei-Chopin_op10_no3_p01-mei.maps.json.svg")
+the_maps_file = str(root_dir / "src/input_files/PARTITURAS_MEI" / "Chopin_op10_no3_p01-mei.maps.json")
+beat_output_path=str(root_dir / "src/input_files/PARTITURAS_MEI" /"CHOPIN_BEAT2.npz")
+
 
 #====================================================
 
 # 1st Creat Beat output file
-# beatPrediction = Run_BeatThis(the_audio_file, beat_output_path)
+beatPrediction = Run_BeatThis(the_audio_file, beat_output_path)
 
 #====================================================
 
 #2nd Create Spectrogram PNG 
 spectogramConfig = {
     "freq_window": (20, 2000),
-    "color_map": "viridis"
+    "color_map": "summer"
 }
 viz_spec = Visualizer()
 viz_spec.add_layer(Spectrogram(**spectogramConfig))

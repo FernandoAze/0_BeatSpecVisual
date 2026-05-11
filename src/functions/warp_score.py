@@ -224,26 +224,24 @@ class Warp_Score():
 
         return score_width, score_height
     
-    def scale_Factor(self, score_svg_file: str, print_output: bool = False):
-        ''' Calculate scale factor between score SVG dimensions and PNG dimensions '''
-        svg_dims = self.extract_ScoreSVG_dimensions(score_svg_file, print_output)
-        score_width = svg_dims[0]
-        score_height = svg_dims[1]
+    # def scale_Factor(self, score_svg_file: str, layers_svg_file: str = None, print_output: bool = False):
 
-        ''' Get actual SVG display dimensions '''
-        viewbox_dims = self.extract_viewBox_dimensions(score_svg_file, print_output)
-        svg_true_width = viewbox_dims['display_width']
-        svg_true_height = viewbox_dims['display_height']
-
-        scale_x = score_width / svg_true_width
-        scale_y = score_height / svg_true_height
-        scale_factor=(scale_x, scale_y)
-
-        if print_output:
-            print(f"✓ Scale factor calculated: scale_x={scale_x}, scale_y={scale_y}")
         
-        return  scale_factor
-    
+    #     ''' Calculate scale factor between score SVG dimensions and PNG dimensions '''
+    #     svg_dims = self.extract_ScoreSVG_dimensions(score_svg_file)
+    #     score_width = svg_dims[0]
+    #     score_height = svg_dims[1]
+
+    #     ''' Get actual SVG display dimensions '''
+    #     viewbox_dims = self.extract_viewBox_dimensions(score_svg_file)
+    #     svg_true_width = viewbox_dims['display_width']
+    #     svg_true_height = viewbox_dims['display_height']
+
+    #     scale_x = score_width / svg_true_width
+    #     scale_y = score_height / svg_true_height
+    #     scale_factor=(scale_x, scale_y)
+
+    #     return  scale_factor
 
     def get_first_and_last_note_positions(self, svg_file: str, maps_file: str, print_output: bool = False):
         ''' Retrieve the x1 attribute (timeline begin) from the first note and last note in SVG using maps file for reference '''
@@ -282,6 +280,41 @@ class Warp_Score():
 
         return first_note_x, last_note_x, score_timeline_length
     
+    def scale_Layers(self, score_svg_file: str = None, layers_svg_file: str = None, maps_file: str = None, print_output: bool = False):
+        '''Calculate scale factor for layers SVG to fit within the Layers container'''
+        
+        ''' Parse the layers SVG file '''
+        layers_tree = ET.parse(layers_svg_file)
+        layers_root = layers_tree.getroot()
+        ns = {'svg': 'http://www.w3.org/2000/svg'}
+        
+        ''' Get width and height from layers SVG - try direct attributes first '''
+        layers_width = layers_root.get('width')
+        layers_height = layers_root.get('height')
+
+        layers_width = float(layers_width.replace('px', ''))
+        layers_height = float(layers_height.replace('px', ''))
+        print(f"Layers dimensions from attributes: width={layers_width}, height={layers_height}")
+        
+        ''' Get score SVG dimensions '''
+        score_dims = self.extract_ScoreSVG_dimensions(score_svg_file)
+        score_width = score_dims[0]
+        score_height = score_dims[1]
+        
+        plot_begin = self.get_first_and_last_note_positions(score_svg_file, maps_file, print_output)[0]
+
+        ''' Calculate scale factors '''
+        scale_x =  (score_width - (plot_begin/2)) / layers_width
+        scale_y =   score_height / layers_height
+        scale_factor = (scale_x, scale_y)
+        
+        if print_output==True:
+            print(f"Layers SVG: width={layers_width}, height={layers_height}")
+            print(f"Score width={score_width}, height={score_height}")
+            print(f"Scale factors: scale_x={scale_x}, scale_y={scale_y}")
+    
+        return scale_factor
+    
     def get_first_and_last_onsets(self, maps_file: str, print_output: bool = False):
         # Retrieve the first and last onset times from the maps file
         with open(str(maps_file), 'r') as f:
@@ -295,7 +328,16 @@ class Warp_Score():
             print(f"✓ First onset time: {first_onset}, Last onset time: {last_onset}")
         
         return first_onset, last_onset
+    
+    def audio_duration(self, audio_file: str, print_output: bool = False):
+        # Get the duration of the audio file in seconds
+        audio_data, samplerate = soundfile.read(audio_file)
+        duration = len(audio_data) / samplerate
 
+        if print_output == True:
+            print(f"✓ Audio duration: {duration:.2f} seconds")
+        
+        return duration
     
     def crop_png(self, maps_file: str = None, png_file: str = None, audio_file: str = None, print_output: bool = False) -> Optional[str]:
         # crops the png so that the spectrogram corresponds to the first and last onsets.
@@ -305,9 +347,8 @@ class Warp_Score():
         png_width, png_height = png_img.size
 
         #  Calculate time per pixel
-        audio_data, samplerate = soundfile.read(audio_file)
-        audio_duration = len(audio_data) / samplerate
-        time_per_pixel = png_width/audio_duration
+        durationOfAudio = self.audio_duration(audio_file)
+        time_per_pixel = png_width/durationOfAudio
         
         #Calculate the pixel of last onset
         last_onset_pixel = int(time_per_pixel * last_onset_time)
@@ -329,7 +370,7 @@ class Warp_Score():
         ''' Get timeline positions: start, end, and length '''
         start_and_width = self.get_first_and_last_note_positions(svg_image, maps_json_file, print_output)
         plot_begin = start_and_width[0]
-        timeline_length = start_and_width[2]
+        
         
         #check plot width and height
         png_img = Image.open(png_plot)
@@ -340,10 +381,17 @@ class Warp_Score():
         composite_svg = svg_tree.getroot()
         
         # Get Actual Score segment Dimensions
-        scoreSegment_dims = self.extract_ScoreSVG_dimensions(svg_image)
+        scoreSegment_dims = self.extract_ScoreSVG_dimensions(svg_image, print_output)
         scoreSegment_width = scoreSegment_dims[0]
         scoreSegment_height = scoreSegment_dims[1]
-        
+
+        # ↓↓↓ IMPORTANTE ↓↓↓
+        # Eu não percebo o pq de isto funcionar. 
+        # Desta forma o espetrograma fica completo e sincronizado.
+        # No entanto, pode ser que isto só funcione para este caso...
+        # Parece Necessário aplicar este valor ao scalling dos Layers
+        timeline_length = scoreSegment_width - (plot_begin / 2) 
+        # ↑↑↑ IMPORTANTE ↑↑↑
 
         ''' Register namespace '''
         svg_ns = 'http://www.w3.org/2000/svg'
@@ -369,17 +417,28 @@ class Warp_Score():
             print("✗ Could not find <g> element with class='page-margin' inside definition-scale")
             return False
         
-        # Create PNG image element
+        ''' Create Layers group positioned at plot_begin '''
+        layers_group = ET.Element('g', {
+            'class': 'Layers',
+            'transform': f'translate({plot_begin}, 0)',
+            'width': str(timeline_length),
+            'height': str(scoreSegment_height)
+        })
+        
+        ''' Create PNG image element positioned at 0,0 relative to Layers group '''
         png_image_elem = ET.Element('image', {
-            'x': str(plot_begin),
+            'x': '0',
             'y': '0',
             'width': str(timeline_length),
             'height': str(scoreSegment_height),
             'href': f'data:image/png;base64,{png_base64}'
         })
         
-        ''' Insert PNG as first child of page-margin '''
-        page_margin.insert(0, png_image_elem)
+        ''' Add PNG to Layers group '''
+        layers_group.append(png_image_elem)
+        
+        ''' Insert Layers group as first child of page-margin '''
+        page_margin.insert(0, layers_group)
 
         ''' Save composite SVG '''
         root_dir = Path(__file__).parent.parent.parent
@@ -419,25 +478,30 @@ class Warp_Score():
                 print("✗ Could not find <g> element with class='page-margin'")
                 return False
             
+            ''' Find the Layers group '''
+            layers_group = page_margin.find(".//svg:g[@class='Layers']", ns)
+            if layers_group is None:
+                print("✗ Could not find <g class='Layers'> in page-margin")
+                return False
+            
             ''' Extract all layer groups from the layers SVG '''
             layer_groups = layers_root.findall(".//svg:g", ns)
             
             if len(layer_groups) > 0:
-                ''' Insert layer groups after the PNG (starting at index 1) '''
-                for i, layer_group in enumerate(layer_groups):
+                ''' Add layer groups to the Layers group '''
+                for layer_group in layer_groups:
                     ''' Deep copy the layer group to avoid modifying the original tree '''
                     layer_copy = ET.fromstring(ET.tostring(layer_group))
                     ''' Apply scale transform to layer group '''
                     current_transform = layer_copy.get('transform', '')
                     new_transform = f"scale({scale_factor[0]}, {scale_factor[1]}) {current_transform}".strip()
                     layer_copy.set('transform', new_transform)
-                    page_margin.insert(1 + i, layer_copy)
-                if print_output:
-                    print(f"✓ Added {len(layer_groups)} layer groups to the aligned SVG")
+                    layers_group.append(layer_copy)
+                if print_output==True:
+                    print(f"✓ Added {len(layer_groups)} layer groups to the Layers group")
                     print(f"✓ Scale factors applied: scale_x={scale_factor[0]}, scale_y={scale_factor[1]}")
             else:
-                if print_output:
-                    print("⚠ Warning: No layer groups found in layers SVG")
+                print("⚠ Warning: No layer groups found in layers SVG")
             
             ''' Save the combined SVG to output folder '''
             root_dir = Path(__file__).parent.parent.parent

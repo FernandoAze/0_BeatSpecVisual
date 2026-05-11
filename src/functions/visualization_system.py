@@ -67,12 +67,19 @@ class Visualizer:
     
     def add_layer(self, layer: Layer) -> 'Visualizer':
         self.layers.append(layer)
-        print(f"Added layer: {layer.name}")
+        # print(f"Added layer: {layer.name}")
         return self
     
-    def load_all_layers(self, **kwargs) -> bool:
+    def load_all_layers(self, audio_path: str = None, **kwargs) -> bool:
+        # Calculate audio duration, store in shared_data.
+        # Used to force x-axis time limit to audio duration.
+        if audio_path is not None:
+            from .warp_score import Warp_Score
+            audio_duration = Warp_Score().audio_duration(audio_path)
+            self.shared_data['audio_duration'] = audio_duration
+            self.shared_data['audio_path'] = audio_path
         for layer in self.layers:
-            if not layer.load_data(**kwargs):
+            if not layer.load_data(audio_path=audio_path, **kwargs):
                 print(f"⚠ Warning: Layer '{layer.name}' failed to load")
                 return False
         return True
@@ -85,6 +92,15 @@ class Visualizer:
             lines, labels = layer.draw(self.ax, self.shared_data)
             self.all_lines.extend(lines)
             self.all_labels.extend(labels)
+        
+        ''' Enforce full audio duration on x-axis '''
+        if 'audio_duration' in self.shared_data:
+            audio_duration = self.shared_data['audio_duration']
+            self.ax.set_xlim(0, audio_duration)
+            
+            ''' Also set secondary axis if it exists '''
+            if 'ax2' in self.shared_data:
+                self.shared_data['ax2'].set_xlim(0, audio_duration)
         
         if self.all_lines:
             self.ax.legend(self.all_lines, self.all_labels, loc='upper right')
@@ -174,7 +190,7 @@ class Visualizer:
             print(f"✗ Error saving SVG: {e}")
             return False
     
-    def TurnPlotIntoPNG(self, filename: str, plot_size: Tuple[int, int], dpi: int = 150, print_output: bool = True) -> bool:
+    def TurnPlotIntoPNG(self, filename: str, plot_size: Tuple[int, int], dpi: int = 150, print_output: bool = False) -> bool:
         """
         Save visualization as PNG with exact pixel dimensions and no padding/axis.
         
@@ -233,6 +249,3 @@ class Visualizer:
         if print_output==True:
                 print(f"✅ PNG saved successfully: {filename} ---> ({width_px}x{height_px}px @ {dpi}dpi)")
         return output_path
-    
-        
-    
