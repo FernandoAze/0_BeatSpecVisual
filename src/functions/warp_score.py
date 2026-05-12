@@ -13,6 +13,7 @@ import io
 from pathlib import Path
 from sklearn import tree
 import soundfile
+import re
 
 
 from .visualization_system import Layer
@@ -145,6 +146,16 @@ class Warp_Score():
         except Exception as e:
             print(f"✗ Warp_Score error: {e}")
             return False
+        
+    def audio_duration(self, audio_file: str, print_output: bool = False):
+        # Get the duration of the audio file in seconds
+        audio_data, samplerate = soundfile.read(audio_file)
+        duration = len(audio_data) / samplerate
+
+        if print_output == True:
+            print(f"✓ Audio duration: {duration:.2f} seconds")
+        
+        return duration
 
     def extract_viewBox_dimensions(self, svg_file: str, print_output: bool = False):
         svg_tree = ET.parse(svg_file)
@@ -199,7 +210,64 @@ class Warp_Score():
             'scale_y': scale_y
         }
     
-    def extract_ScoreSVG_dimensions(self, svg_file: str, print_output: bool = False):
+    def get_translate_value(self, svg_file: str, element_id: str, print_output: bool = False):
+        '''Extract the translate x-value from an SVG element by its ID.
+        Checks element and walks up parent chain to find translate.'''
+        try:
+            if isinstance(svg_file, str) and (
+                svg_file.startswith('<?xml') or 
+                svg_file.startswith('<svg')
+            ):
+                root = ET.fromstring(svg_file)
+            else:
+                tree = ET.parse(svg_file)
+                root = tree.getroot()
+        except ET.ParseError as e:
+            print(f"✗ Error parsing SVG: {e}")
+            return None
+        
+        ''' Build parent map '''
+        parent_map = {c: p for p in root.iter() for c in p}
+        
+        ''' Find element by ID or data-id '''
+        element = None
+        for elem in root.iter():
+            if elem.get('id') == element_id or elem.get('data-id') == element_id:
+                element = elem
+                break
+        
+        if element is None:
+            print(f"✗ Element with ID '{element_id}' not found")
+            return None
+        
+        ''' Walk up the parent chain looking for translate '''
+        current = element
+        while current is not None:
+            transform = current.get('transform')
+            if transform:
+                match = re.search(r'translate\s*\(\s*([\d.\-]+)', transform)
+                if match:
+                    translate_value = float(match.group(1))
+                    if print_output:
+                        print(f"✓ Found translate value: {translate_value} for element '{element_id}'")
+                    return translate_value
+            current = parent_map.get(current)
+        
+        print(f"✗ No translate found for element '{element_id}' or its parents")
+        return None
+
+    def get_LastTranslation(self, svg_file: str, maps_file: str, print_output: bool = False):
+
+        lastNoteID=self.get_FirstLast_NoteID(maps_file, print_output)[1]
+
+        translate_value=self.get_translate_value(svg_file, lastNoteID, print_output)
+
+        if print_output==True:
+            print(f"✓ Last translation value: {translate_value}")
+
+        return translate_value
+    
+    def extract_ScoreSVG_dimensions(self, svg_file: str, maps_file: str, print_output: bool = False):
 
         svg_tree = ET.parse(svg_file)
         root = svg_tree.getroot()
@@ -207,6 +275,7 @@ class Warp_Score():
 
         ''' Get viewBox from root or nested SVG '''
         viewbox = root.get('viewBox')
+
         if not viewbox:
             ''' Look for viewBox in nested SVG elements '''
             nested_svg = root.find(".//svg:svg", ns)
@@ -215,7 +284,10 @@ class Warp_Score():
         
         vb_parts = viewbox.split()
         dimensions = list(map(float, vb_parts))
-        score_width = dimensions[2]
+
+        LastTranslation=self.get_LastTranslation(svg_file, maps_file, print_output)
+
+        score_width = dimensions[2 ] + (LastTranslation*(-1)) 
         score_height = dimensions[3]
 
         if print_output==True:
@@ -224,24 +296,22 @@ class Warp_Score():
 
         return score_width, score_height
     
-    # def scale_Factor(self, score_svg_file: str, layers_svg_file: str = None, print_output: bool = False):
-
+    def get_FirstLast_NoteID(self, maps_file: str, print_output: bool = False):
+        ''' Retrieve the xml_id of the first and last note from the maps file '''
+        if maps_file is None:
+            print("✗ valid maps_file must be provided")
+            return None
         
-    #     ''' Calculate scale factor between score SVG dimensions and PNG dimensions '''
-    #     svg_dims = self.extract_ScoreSVG_dimensions(score_svg_file)
-    #     score_width = svg_dims[0]
-    #     score_height = svg_dims[1]
+        with open(str(maps_file), 'r') as f:
+            maps = json.load(f)
+        
+        first_note_id = maps[0].get('xml_id')
+        last_note_id = maps[-1].get('xml_id')
 
-    #     ''' Get actual SVG display dimensions '''
-    #     viewbox_dims = self.extract_viewBox_dimensions(score_svg_file)
-    #     svg_true_width = viewbox_dims['display_width']
-    #     svg_true_height = viewbox_dims['display_height']
+        if print_output == True:
+            print(f"First note xml_id: {first_note_id}, Last note xml_id: {last_note_id}")
 
-    #     scale_x = score_width / svg_true_width
-    #     scale_y = score_height / svg_true_height
-    #     scale_factor=(scale_x, scale_y)
-
-    #     return  scale_factor
+        return first_note_id, last_note_id
 
     def get_first_and_last_note_positions(self, svg_file: str, maps_file: str, print_output: bool = False):
         ''' Retrieve the x1 attribute (timeline begin) from the first note and last note in SVG using maps file for reference '''
@@ -256,8 +326,7 @@ class Warp_Score():
         with open(str(maps_file), 'r') as f:
             maps = json.load(f)
         
-        first_note_id = maps[0].get('xml_id')
-        last_note_id = maps[-1].get('xml_id')
+        first_note_id, last_note_id = self.get_FirstLast_NoteID(maps_file, print_output)
         
         ''' Look up the actual x position in the SVG using xml_id, finding use element inside note '''
         ns = {'svg': 'http://www.w3.org/2000/svg'}
@@ -294,18 +363,17 @@ class Warp_Score():
 
         layers_width = float(layers_width.replace('px', ''))
         layers_height = float(layers_height.replace('px', ''))
-        print(f"Layers dimensions from attributes: width={layers_width}, height={layers_height}")
         
         ''' Get score SVG dimensions '''
-        score_dims = self.extract_ScoreSVG_dimensions(score_svg_file)
+        score_dims = self.extract_ScoreSVG_dimensions(score_svg_file, maps_file)
         score_width = score_dims[0]
         score_height = score_dims[1]
         
-        plot_begin = self.get_first_and_last_note_positions(score_svg_file, maps_file, print_output)[0]
+        plot_begin = self.get_first_and_last_note_positions(score_svg_file, maps_file)[0]
 
         ''' Calculate scale factors '''
         scale_x =  (score_width - (plot_begin/2)) / layers_width
-        scale_y =   score_height / layers_height
+        scale_y =   (score_height / layers_height)-1 # The -1 is a correction factor to better fit the layers within the score segment.
         scale_factor = (scale_x, scale_y)
         
         if print_output==True:
@@ -315,55 +383,45 @@ class Warp_Score():
     
         return scale_factor
     
-    def get_first_and_last_onsets(self, maps_file: str, print_output: bool = False):
-        # Retrieve the first and last onset times from the maps file
-        with open(str(maps_file), 'r') as f:
-            data = json.load(f)  
+    # def get_first_and_last_onsets(self, maps_file: str, print_output: bool = False):
+    #     # Retrieve the first and last onset times from the maps file
+    #     with open(str(maps_file), 'r') as f:
+    #         data = json.load(f)  
 
-        # Scorewarp offestes the first onset by it's time.
-        first_onset = data[0].get('obs_mean_onset') - data[0].get('obs_mean_onset') 
-        last_onset = data[-1].get('obs_mean_onset') - data[0].get('obs_mean_onset')
+    #     # Scorewarp offestes the first onset by it's time.
+    #     first_onset = data[0].get('obs_mean_onset') - data[0].get('obs_mean_onset') 
+    #     last_onset = data[-1].get('obs_mean_onset') - data[0].get('obs_mean_onset')
 
-        if print_output == True:
-            print(f"✓ First onset time: {first_onset}, Last onset time: {last_onset}")
+    #     if print_output == True:
+    #         print(f"✓ First onset time: {first_onset}, Last onset time: {last_onset}")
         
-        return first_onset, last_onset
+    #     return first_onset, last_onset«
     
-    def audio_duration(self, audio_file: str, print_output: bool = False):
-        # Get the duration of the audio file in seconds
-        audio_data, samplerate = soundfile.read(audio_file)
-        duration = len(audio_data) / samplerate
+    # def crop_png(self, maps_file: str = None, png_file: str = None, audio_file: str = None, print_output: bool = False) -> Optional[str]:
+    #     # crops the png so that the spectrogram corresponds to the first and last onsets.
 
-        if print_output == True:
-            print(f"✓ Audio duration: {duration:.2f} seconds")
+    #     last_onset_time = self.get_first_and_last_onsets(maps_file, print_output)[1]
+    #     png_img = Image.open(png_file)
+    #     png_width, png_height = png_img.size
+
+    #     #  Calculate time per pixel
+    #     durationOfAudio = self.audio_duration(audio_file)
+    #     time_per_pixel = png_width/durationOfAudio
         
-        return duration
-    
-    def crop_png(self, maps_file: str = None, png_file: str = None, audio_file: str = None, print_output: bool = False) -> Optional[str]:
-        # crops the png so that the spectrogram corresponds to the first and last onsets.
+    #     #Calculate the pixel of last onset
+    #     last_onset_pixel = int(time_per_pixel * last_onset_time)
 
-        last_onset_time = self.get_first_and_last_onsets(maps_file, print_output)[1]
-        png_img = Image.open(png_file)
-        png_width, png_height = png_img.size
+    #     cropped_img = png_img.crop((0, 0, last_onset_pixel, png_height))
 
-        #  Calculate time per pixel
-        durationOfAudio = self.audio_duration(audio_file)
-        time_per_pixel = png_width/durationOfAudio
+    #     # Save cropped PNG to output folder 
+    #     root_dir = Path(__file__).parent.parent.parent
+    #     output_dir = root_dir / "output"
+    #     output_dir.mkdir(parents=True, exist_ok=True)
+    #     output_path = str(output_dir / "cropped_png.png")
         
-        #Calculate the pixel of last onset
-        last_onset_pixel = int(time_per_pixel * last_onset_time)
-
-        cropped_img = png_img.crop((0, 0, last_onset_pixel, png_height))
-
-        # Save cropped PNG to output folder 
-        root_dir = Path(__file__).parent.parent.parent
-        output_dir = root_dir / "output"
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = str(output_dir / "cropped_png.png")
+    #     cropped_img.save(output_path)
         
-        cropped_img.save(output_path)
-        
-        return output_path
+    #     return output_path
     
     def Allign_Score_and_PNG(self, png_plot: str, svg_image: str, maps_json_file: str, print_output: bool = False) -> bool:
     
@@ -381,7 +439,7 @@ class Warp_Score():
         composite_svg = svg_tree.getroot()
         
         # Get Actual Score segment Dimensions
-        scoreSegment_dims = self.extract_ScoreSVG_dimensions(svg_image, print_output)
+        scoreSegment_dims = self.extract_ScoreSVG_dimensions(svg_image, maps_json_file, print_output)
         scoreSegment_width = scoreSegment_dims[0]
         scoreSegment_height = scoreSegment_dims[1]
 
@@ -453,7 +511,7 @@ class Warp_Score():
         print(f"✓ Composite SVG created: {output_path}")
         return True
 
-    def combine_AllignedScore_with_Layers(self, filename: str, alligned_svg: str, layers_svg: str, scale_factor: tuple, print_output: bool = False):
+    def combine_AllignedScore_with_Layers(self, filename: str, original_score: str,alligned_svg: str, layers_svg: str, maps_file: str, print_output: bool = False):
         ''' Combine aligned score SVG with visualization layers from TurnLayersIntoSVG '''
         try:
             ''' Parse both SVG files '''
@@ -494,7 +552,10 @@ class Warp_Score():
                     layer_copy = ET.fromstring(ET.tostring(layer_group))
                     ''' Apply scale transform to layer group '''
                     current_transform = layer_copy.get('transform', '')
+
+                    scale_factor = tuple(self.scale_Layers(original_score, layers_svg, maps_file, print_output))
                     new_transform = f"scale({scale_factor[0]}, {scale_factor[1]}) {current_transform}".strip()
+
                     layer_copy.set('transform', new_transform)
                     layers_group.append(layer_copy)
                 if print_output==True:
