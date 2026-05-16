@@ -25,7 +25,7 @@ from src.functions.Beat_Layers import (
 WS = Warp_Score()
 
 #Print states to console
-stuff_to_console=True
+stuff_to_console=False
 
 # Define input file paths 
 

@@ -77,7 +77,6 @@ class Onsets_Layer(Layer):
     
     #========================================================
     # Methods for Layers that are vector based for SVG output
-    #========================================================
     def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
         '''Convert onsets to SVG dashed vertical lines'''
         if self._data is None or "svg_context" not in shared_data:
@@ -118,7 +117,6 @@ class Onsets_Layer(Layer):
             return to_hex(rgb)
         except:
             return '#000000'
-    #========================================================
     # Methods for Layers that are vector based for SVG output
     #========================================================
 
@@ -210,6 +208,23 @@ class Warp_Score():
             'scale_y': scale_y
         }
     
+    def get_FirstLast_NoteID(self, maps_file: str, print_output: bool = False):
+        ''' Retrieve the xml_id of the first and last note from the maps file '''
+        if maps_file is None:
+            print("✗ valid maps_file must be provided")
+            return None
+        
+        with open(str(maps_file), 'r') as f:
+            maps = json.load(f)
+        
+        first_note_id = maps[0].get('xml_id')
+        last_note_id = maps[-1].get('xml_id')
+
+        if print_output == True:
+            print(f"First note xml_id: {first_note_id}, Last note xml_id: {last_note_id}")
+
+        return first_note_id, last_note_id
+    
     def get_translate_value(self, svg_file: str, element_id: str, print_output: bool = False):
         '''Extract the translate x-value from an SVG element by its ID.
         Checks element and walks up parent chain to find translate.'''
@@ -295,23 +310,6 @@ class Warp_Score():
             print(f"Score segment HEIGHT: {score_height} ")
 
         return score_width, score_height
-    
-    def get_FirstLast_NoteID(self, maps_file: str, print_output: bool = False):
-        ''' Retrieve the xml_id of the first and last note from the maps file '''
-        if maps_file is None:
-            print("✗ valid maps_file must be provided")
-            return None
-        
-        with open(str(maps_file), 'r') as f:
-            maps = json.load(f)
-        
-        first_note_id = maps[0].get('xml_id')
-        last_note_id = maps[-1].get('xml_id')
-
-        if print_output == True:
-            print(f"First note xml_id: {first_note_id}, Last note xml_id: {last_note_id}")
-
-        return first_note_id, last_note_id
 
     def get_first_and_last_note_positions(self, svg_file: str, maps_file: str, print_output: bool = False):
         ''' Retrieve the x1 attribute (timeline begin) from the first note and last note in SVG using maps file for reference '''
@@ -382,46 +380,6 @@ class Warp_Score():
             print(f"Scale factors: scale_x={scale_x}, scale_y={scale_y}")
     
         return scale_factor
-    
-    # def get_first_and_last_onsets(self, maps_file: str, print_output: bool = False):
-    #     # Retrieve the first and last onset times from the maps file
-    #     with open(str(maps_file), 'r') as f:
-    #         data = json.load(f)  
-
-    #     # Scorewarp offestes the first onset by it's time.
-    #     first_onset = data[0].get('obs_mean_onset') - data[0].get('obs_mean_onset') 
-    #     last_onset = data[-1].get('obs_mean_onset') - data[0].get('obs_mean_onset')
-
-    #     if print_output == True:
-    #         print(f"✓ First onset time: {first_onset}, Last onset time: {last_onset}")
-        
-    #     return first_onset, last_onset«
-    
-    # def crop_png(self, maps_file: str = None, png_file: str = None, audio_file: str = None, print_output: bool = False) -> Optional[str]:
-    #     # crops the png so that the spectrogram corresponds to the first and last onsets.
-
-    #     last_onset_time = self.get_first_and_last_onsets(maps_file, print_output)[1]
-    #     png_img = Image.open(png_file)
-    #     png_width, png_height = png_img.size
-
-    #     #  Calculate time per pixel
-    #     durationOfAudio = self.audio_duration(audio_file)
-    #     time_per_pixel = png_width/durationOfAudio
-        
-    #     #Calculate the pixel of last onset
-    #     last_onset_pixel = int(time_per_pixel * last_onset_time)
-
-    #     cropped_img = png_img.crop((0, 0, last_onset_pixel, png_height))
-
-    #     # Save cropped PNG to output folder 
-    #     root_dir = Path(__file__).parent.parent.parent
-    #     output_dir = root_dir / "output"
-    #     output_dir.mkdir(parents=True, exist_ok=True)
-    #     output_path = str(output_dir / "cropped_png.png")
-        
-    #     cropped_img.save(output_path)
-        
-    #     return output_path
     
     def Allign_Score_and_PNG(self, png_plot: str, svg_image: str, maps_json_file: str, print_output: bool = False) -> bool:
     

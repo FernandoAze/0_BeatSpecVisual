@@ -196,7 +196,8 @@ Aligns and warps score with spectrogram PNG. Creates composite visualizations.
 
 BeatThis_layers.py 
 	This script is divided into multiple classes that should just be methods of a "class BeatThis()". 
-	I will correct this in the future. 
+	I will correct this in the future.
+ 
 
 Folder src/input_files structure also will be changed to have be:
 ```bash
@@ -211,3 +212,10 @@ Folder src/input_files structure also will be changed to have be:
 │               └── Chopin_op10no3_p01-mei.maps.json
 	
 ```
+###Usefull Stuff
+Link for Verovio Online Editor:
+	https://editor.verovio.org/
+
+Link for converting MXL (musescore forma) into MusicXML: 
+	https://musicxml.tools/converter
+
