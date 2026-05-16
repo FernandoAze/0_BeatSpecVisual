@@ -145,6 +145,63 @@ class Warp_Score():
             print(f"✗ Warp_Score error: {e}")
             return False
         
+    def get_timeAxis_bounds(self, svg_file: str, print_output: bool = False):
+        ''' Extract the x-coordinates of the first and last vertical lines in timeAxis '''
+        try:
+            tree = ET.parse(svg_file)
+            root = tree.getroot()
+            ns = {'svg': 'http://www.w3.org/2000/svg'}
+            
+            ''' Find timeAxis with namespace handling '''
+            time_axis = root.find(".//svg:g[@class='timeAxis']", ns)
+            if time_axis is None:
+                time_axis = root.find(".//g[@class='timeAxis']")
+            
+            if time_axis is None:
+                print("✗ Could not find timeAxis element")
+                return None
+            
+            ''' Extract all line elements and find vertical lines (where x1 == x2) '''
+            lines = time_axis.findall(".//svg:line", ns)
+            if not lines:
+                lines = time_axis.findall(".//line")
+            
+            if not lines:
+                print("✗ No line elements found in timeAxis")
+                return None
+            
+            ''' Filter vertical lines (x1 == x2) and get their x positions '''
+            vertical_lines = []
+            for line in lines:
+                x1 = line.get('x1')
+                x2 = line.get('x2')
+                if x1 and x2:
+                    try:
+                        x1_val = float(x1)
+                        x2_val = float(x2)
+                        if abs(x1_val - x2_val) < 0.01:
+                            vertical_lines.append(x1_val)
+                    except ValueError:
+                        continue
+            
+            if len(vertical_lines) < 2:
+                print("✗ Could not find at least 2 vertical lines in timeAxis")
+                return None
+            
+            vertical_lines.sort()
+            first_x = vertical_lines[0]
+            last_x = vertical_lines[-1]
+            timeline_width = last_x - first_x
+            
+            if print_output:
+                print(f"✓ TimeAxis bounds: first_x={first_x}, last_x={last_x}, width={timeline_width}")
+            
+            return first_x, last_x, timeline_width
+            
+        except Exception as e:
+            print(f"✗ Error getting timeAxis bounds: {e}")
+            return None
+
     def audio_duration(self, audio_file: str, print_output: bool = False):
         # Get the duration of the audio file in seconds
         audio_data, samplerate = soundfile.read(audio_file)
@@ -348,66 +405,67 @@ class Warp_Score():
         return first_note_x, last_note_x, score_timeline_length
     
     def scale_Layers(self, score_svg_file: str = None, layers_svg_file: str = None, maps_file: str = None, print_output: bool = False):
-        '''Calculate scale factor for layers SVG to fit within the Layers container'''
+        '''Calculate scale factor for layers SVG to fit within the timeAxis boundaries'''
+        
+        ''' Get timeAxis bounds '''
+        timeAxis_bounds = self.get_timeAxis_bounds(score_svg_file, print_output)
+        if timeAxis_bounds is None:
+            print("✗ Could not get timeAxis bounds for scaling")
+            return (1.0, 1.0)
+        
+        timeAxis_first_x, timeAxis_last_x, timeline_width = timeAxis_bounds
         
         ''' Parse the layers SVG file '''
         layers_tree = ET.parse(layers_svg_file)
         layers_root = layers_tree.getroot()
         ns = {'svg': 'http://www.w3.org/2000/svg'}
         
-        ''' Get width and height from layers SVG - try direct attributes first '''
+        ''' Get width and height from layers SVG '''
         layers_width = layers_root.get('width')
         layers_height = layers_root.get('height')
 
         layers_width = float(layers_width.replace('px', ''))
         layers_height = float(layers_height.replace('px', ''))
         
-        ''' Get score SVG dimensions '''
-        score_dims = self.extract_ScoreSVG_dimensions(score_svg_file, maps_file)
-        score_width = score_dims[0]
-        score_height = score_dims[1]
+        ''' Target height to match PNG display height '''
+        target_height = 110
         
-        plot_begin = self.get_first_and_last_note_positions(score_svg_file, maps_file)[0]
-
-        ''' Calculate scale factors '''
-        scale_x =  (score_width - (plot_begin/2)) / layers_width
-        scale_y =   (score_height / layers_height)-1 # The -1 is a correction factor to better fit the layers within the score segment.
+        ''' Calculate scale factors based on timeAxis width and target height '''
+        scale_x = timeline_width / layers_width
+        scale_y = target_height / layers_height
         scale_factor = (scale_x, scale_y)
         
-        if print_output==True:
+        if print_output:
             print(f"Layers SVG: width={layers_width}, height={layers_height}")
-            print(f"Score width={score_width}, height={score_height}")
+            print(f"TimeAxis width={timeline_width}, Target height={target_height}")
             print(f"Scale factors: scale_x={scale_x}, scale_y={scale_y}")
     
         return scale_factor
     
     def Allign_Score_and_PNG(self, png_plot: str, svg_image: str, maps_json_file: str, print_output: bool = False) -> bool:
     
-        ''' Get timeline positions: start, end, and length '''
-        start_and_width = self.get_first_and_last_note_positions(svg_image, maps_json_file, print_output)
-        plot_begin = start_and_width[0]
+        ''' Get timeAxis bounds to size the Layers properly '''
+        timeAxis_bounds = self.get_timeAxis_bounds(svg_image, print_output)
+        if timeAxis_bounds is None:
+            print("✗ Could not get timeAxis bounds")
+            return False
         
+        timeAxis_first_x, timeAxis_last_x, timeline_width = timeAxis_bounds
         
-        #check plot width and height
+        ''' check plot width and height '''
         png_img = Image.open(png_plot)
         png_width, png_height = png_img.size
+        
+        ''' Target height for the PNG display '''
+        target_png_height = 110
+        
+        ''' Calculate scale factors '''
+        scale_x = timeline_width / png_width
+        scale_y = target_png_height / png_height
 
         ''' Parse SVG file to use as base '''
         svg_tree = ET.parse(svg_image)
         composite_svg = svg_tree.getroot()
-        
-        # Get Actual Score segment Dimensions
-        scoreSegment_dims = self.extract_ScoreSVG_dimensions(svg_image, maps_json_file, print_output)
-        scoreSegment_width = scoreSegment_dims[0]
-        scoreSegment_height = scoreSegment_dims[1]
-
-        # ↓↓↓ IMPORTANTE ↓↓↓
-        # Eu não percebo o pq de isto funcionar. 
-        # Desta forma o espetrograma fica completo e sincronizado.
-        # No entanto, pode ser que isto só funcione para este caso...
-        # Parece Necessário aplicar este valor ao scalling dos Layers
-        timeline_length = scoreSegment_width - (plot_begin / 2) 
-        # ↑↑↑ IMPORTANTE ↑↑↑
 
         ''' Register namespace '''
         svg_ns = 'http://www.w3.org/2000/svg'
@@ -422,39 +480,44 @@ class Warp_Score():
         # It ensures there's no confusion if you mix SVG with other XML formats.
         ns = {'svg': 'http://www.w3.org/2000/svg'}
         
-        # Inside:   class='definition-scale'
-        # Find the <g> element with:    class='page-margin' 
-        definition_scale = composite_svg.find(".//svg:svg[@class='definition-scale']", ns)
-        if definition_scale is None:
-            print("✗ Could not find nested <svg> element with class='definition-scale'")
-            return False
-        page_margin = definition_scale.find(".//svg:g[@class='page-margin']", ns)
-        if page_margin is None:
-            print("✗ Could not find <g> element with class='page-margin' inside definition-scale")
+        # Find the <g> element with class='timeAxis' - try with namespace first, then without
+        time_axis = composite_svg.find(".//svg:g[@class='timeAxis']", ns)
+        if time_axis is None:
+            ''' Try without namespace prefix '''
+            time_axis = composite_svg.find(".//g[@class='timeAxis']")
+        if time_axis is None:
+            print("✗ Could not find <g> element with class='timeAxis'")
             return False
         
-        ''' Create Layers group positioned at plot_begin '''
+        ''' Create Layers group positioned at timeAxis first line '''
         layers_group = ET.Element('g', {
             'class': 'Layers',
-            'transform': f'translate({plot_begin}, 0)',
-            'width': str(timeline_length),
-            'height': str(scoreSegment_height)
+            'transform': f'translate({timeAxis_first_x}, 0)',
+            'width': str(timeline_width),
+            'height': str(int(png_height * scale_y))
         })
         
-        ''' Create PNG image element positioned at 0,0 relative to Layers group '''
+        ''' Create PNG image element with scaled dimensions '''
         png_image_elem = ET.Element('image', {
             'x': '0',
             'y': '0',
-            'width': str(timeline_length),
-            'height': str(scoreSegment_height),
+            'width': str(timeline_width),
+            'height': str(int(png_height * scale_y)),
             'href': f'data:image/png;base64,{png_base64}'
         })
         
         ''' Add PNG to Layers group '''
         layers_group.append(png_image_elem)
         
-        ''' Insert Layers group as first child of page-margin '''
-        page_margin.insert(0, layers_group)
+        ''' Find parent of timeAxis (the root SVG) and insert Layers group before timeAxis '''
+        parent_map = {c: p for p in composite_svg.iter() for c in p}
+        time_axis_parent = parent_map.get(time_axis, composite_svg)
+        
+        ''' Get the index of timeAxis in its parent '''
+        time_axis_index = list(time_axis_parent).index(time_axis)
+        
+        ''' Insert Layers group at the first position (before timeAxis) '''
+        time_axis_parent.insert(0, layers_group)
 
         ''' Save composite SVG '''
         root_dir = Path(__file__).parent.parent.parent
@@ -466,7 +529,9 @@ class Warp_Score():
         composite_tree = ET.ElementTree(composite_svg)
         composite_tree.write(output_path, encoding='UTF-8', xml_declaration=True)
         
-        print(f"✓ Composite SVG created: {output_path}")
+        if print_output:
+            print(f"✓ Composite SVG created: {output_path}")
+            print(f"✓ Layers positioned at x={timeAxis_first_x}, scale_x={scale_x:.4f}, scale_y={scale_y:.4f}")
         return True
 
     def combine_AllignedScore_with_Layers(self, filename: str, original_score: str,alligned_svg: str, layers_svg: str, maps_file: str, print_output: bool = False):
@@ -483,21 +548,13 @@ class Warp_Score():
             svg_ns = 'http://www.w3.org/2000/svg'
             ns = {'svg': svg_ns}
             
-            ''' Find the page-margin group in the aligned SVG '''
-            definition_scale = aligned_root.find(".//svg:svg[@class='definition-scale']", ns)
-            if definition_scale is None:
-                print("✗ Could not find nested <svg> element with class='definition-scale'")
-                return False
-            
-            page_margin = definition_scale.find(".//svg:g[@class='page-margin']", ns)
-            if page_margin is None:
-                print("✗ Could not find <g> element with class='page-margin'")
-                return False
-            
-            ''' Find the Layers group '''
-            layers_group = page_margin.find(".//svg:g[@class='Layers']", ns)
+            ''' Find the Layers group at the root level (sibling of timeAxis) '''
+            layers_group = aligned_root.find(".//svg:g[@class='Layers']", ns)
             if layers_group is None:
-                print("✗ Could not find <g class='Layers'> in page-margin")
+                ''' Try without namespace prefix '''
+                layers_group = aligned_root.find(".//g[@class='Layers']")
+            if layers_group is None:
+                print("✗ Could not find <g class='Layers'> at root level")
                 return False
             
             ''' Extract all layer groups from the layers SVG '''
