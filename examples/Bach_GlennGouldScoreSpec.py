@@ -40,7 +40,7 @@ beat_output_path = str(root_dir / input_parent_dir / "beat_Bach.npz")
 if stuff_to_console==True:
     print("================= STEP 1 =================")
 
-beatPrediction = Run_BeatThis(the_audio_file, beat_output_path)
+# beatPrediction = Run_BeatThis(the_audio_file, beat_output_path)
 
 #====================================================
 #2nd Create Spectrogram PNG 
