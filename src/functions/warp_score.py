@@ -19,10 +19,10 @@ import re
 from .visualization_system import Layer
 
 class Onsets_Layer(Layer):
-    def __init__(self, name: str = "obs_mean_onsets", onset_color: str = 'yellow'):
+    def __init__(self, name: str = "obs_mean_onsets", onset_color: str = 'yellow', line_Width: float = 0.2):
         super().__init__(name)
         self.onset_color = onset_color
-
+        self.line_Width = line_Width
     def load_data(self, maps_file: str = None, **kwargs) -> bool:
         """Load onsets from MAPS JSON file"""
         try:
@@ -52,7 +52,7 @@ class Onsets_Layer(Layer):
             self._data = {
                 "onset_times": onset_times,
             }
-            print(f"✓ {self.name}: Loaded {len(self._data['onset_times'])} onsets")
+            # print(f"✓ {self.name}: Loaded {len(self._data['onset_times'])} onsets")
             return True
         except Exception as e:
             print(f"✗ {self.name} error: {e}")
@@ -67,7 +67,7 @@ class Onsets_Layer(Layer):
 
         for onset in self._data['onset_times']:
             line = ax.axvline(x=onset, color=self.onset_color,
-            linestyle='--', linewidth=0.2, label='Onset')
+            linestyle='--', linewidth=self.line_Width, label='Onset')
             lines.append(line)
         
         if lines:
@@ -98,7 +98,7 @@ class Onsets_Layer(Layer):
             else:
                 x = ((onset_time - ctx["x_min"]) / (ctx["x_max"] - ctx["x_min"])) * ctx["width_px"]
             
-            lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{color_hex}" stroke-width="0.2" stroke-dasharray="2,2"/>')
+            lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{color_hex}" stroke-width="{self.line_Width}" stroke-dasharray="2,2"/>')
         
         svg_group = f'''  <g id="{self.name}" class="layer onsets">
 {chr(10).join(lines)}
@@ -193,7 +193,7 @@ class Warp_Score():
             last_x = vertical_lines[-1]
             timeline_width = last_x - first_x
             
-            if print_output:
+            if print_output==True:
                 print(f"✓ TimeAxis bounds: first_x={first_x}, last_x={last_x}, width={timeline_width}")
             
             return first_x, last_x, timeline_width
@@ -426,10 +426,16 @@ class Warp_Score():
 
         layers_width = float(layers_width.replace('px', ''))
         layers_height = float(layers_height.replace('px', ''))
-        
+
+        #MMMMMMMMMMMMMMMMMMMM
+        #MMMMMM???????MMMMMMM
+        #MMMMMMMMMMMMMMMMMMMM
         ''' Target height to match PNG display height '''
         target_height = 110
-        
+        #MMMMMMMMMMMMMMMMMMMM
+        #MMMMMM???????MMMMMMM
+        #MMMMMMMMMMMMMMMMMMMM
+
         ''' Calculate scale factors based on timeAxis width and target height '''
         scale_x = timeline_width / layers_width
         scale_y = target_height / layers_height
@@ -442,10 +448,10 @@ class Warp_Score():
     
         return scale_factor
     
-    def Allign_Score_and_PNG(self, png_plot: str, svg_image: str, maps_json_file: str, print_output: bool = False) -> bool:
+    def Allign_Score_and_PNG(self, png_plot: str, svg_score: str, maps_json_file: str, print_output: bool = False) -> bool:
     
         ''' Get timeAxis bounds to size the Layers properly '''
-        timeAxis_bounds = self.get_timeAxis_bounds(svg_image, print_output)
+        timeAxis_bounds = self.get_timeAxis_bounds(svg_score, print_output)
         if timeAxis_bounds is None:
             print("✗ Could not get timeAxis bounds")
             return False
@@ -464,7 +470,7 @@ class Warp_Score():
         scale_y = target_png_height / png_height
 
         ''' Parse SVG file to use as base '''
-        svg_tree = ET.parse(svg_image)
+        svg_tree = ET.parse(svg_score)
         composite_svg = svg_tree.getroot()
 
         ''' Register namespace '''
@@ -501,8 +507,6 @@ class Warp_Score():
         png_image_elem = ET.Element('image', {
             'x': '0',
             'y': '0',
-            'width': str(timeline_width),
-            'height': str(int(png_height * scale_y)),
             'href': f'data:image/png;base64,{png_base64}'
         })
         
@@ -531,7 +535,7 @@ class Warp_Score():
         
         if print_output:
             print(f"✓ Composite SVG created: {output_path}")
-            print(f"✓ Layers positioned at x={timeAxis_first_x}, scale_x={scale_x:.4f}, scale_y={scale_y:.4f}")
+            # print(f"✓ Layers positioned at x={timeAxis_first_x}, scale_x={scale_x:.4f}, scale_y={scale_y:.4f}")
         return True
 
     def combine_AllignedScore_with_Layers(self, filename: str, original_score: str,alligned_svg: str, layers_svg: str, maps_file: str, print_output: bool = False):
