@@ -10,7 +10,7 @@ import json
 script_dir = Path(__file__).parent
 root_dir = script_dir.parent
 sys.path.insert(0, str(root_dir))
-input_parent_dir = str("src/input_files/PARTITURAS_MEI")
+input_parent_dir = str("src/input_files/PreludeN2Bach")
 
 from src.functions.visualization_system import Visualizer
 from src.functions.warp_score import Onsets_Layer, Warp_Score
@@ -29,10 +29,10 @@ stuff_to_console=False
 
 # Define input file paths 
 
-the_audio_file = str(root_dir / input_parent_dir / "Chopin_op10_no3_p01.wav")
-svg_score = str(root_dir / input_parent_dir / "Chopin_Op10_3_1.mei-Chopin_op10_no3_p01-mei.maps.json.svg")
-the_maps_file = str(root_dir / input_parent_dir / "Chopin_op10_no3_p01-mei.maps.json")
-beat_output_path=str(root_dir / input_parent_dir /"CHOPIN_BEAT2.npz")
+the_audio_file = str(root_dir / input_parent_dir / "Prelude_n2_Cm.wav")
+svg_score = str(root_dir / input_parent_dir / "warped.svg")
+the_maps_file = str(root_dir / input_parent_dir / "My_BachGlennGouldPreludioN2Cm.maps.json")
+beat_output_path=str(root_dir / input_parent_dir /"beat_Bach.npz")
 
 
 #====================================================
@@ -50,7 +50,7 @@ if stuff_to_console==True:
 
 spectogramConfig = {
     "freq_window": (20, 2000),
-    "color_map": "summer"
+    "color_map": "magma"
 }
 viz_spec = Visualizer()
 viz_spec.add_layer(Spectrogram(**spectogramConfig))
@@ -64,8 +64,9 @@ if stuff_to_console==True:
     print(f"SVG Layer dimensions: \nWidth={svg_Layer_Width},\nHeight={svg_Layer_Height}")
     print("====================") 
 
-generated_Spec_file=viz_spec.TurnPlotIntoPNG("222_specTOGRAM.png",
+generated_Spec_file=viz_spec.TurnPlotIntoPNG("333_specTOGRAM.png",
                                             plot_size       = (svg_Layer_Width, svg_Layer_Height),
+                                            # plot_size       = (1919.2*3, 191),
                                             dpi             =300,
                                             print_output    =False)
 
@@ -76,19 +77,13 @@ if stuff_to_console==True:
 
 viz=Visualizer()
 
-viz.add_layer(BeatAccurateLayer(beat_color      =(1, 1, 0),    # Yellow beats
-                                downbeat_color  =(0, 1,1)))    # Cyan downbeats
-viz.add_layer(Onsets_Layer(onset_color          =(1,1,1)))     # White onsets
-viz.add_layer(BeatProbabilityLayer(color        =(1, 0, 0)))   # Red Beat Curve
-viz.add_layer(DownbeatProbabilityLayer(color    =(1, 0, 1)))   # Magenta Downbeat Curve  
+viz.add_layer(Onsets_Layer(onset_color          =(0.2,1,0.5), 
+                           line_Width            =1))  
+
 
 viz.load_all_layers( audio_path    =the_audio_file,
-                    # beat_file      =beatPrediction, 
                     beat_file      =beat_output_path,
                     maps_file      =the_maps_file)
-
-
-# The 0.03 is a scaling factor to match the svg dimension in this Example.
 
 fig, ax = viz.draw() # This will draw layers as matplotlib objects.
 

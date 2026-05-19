@@ -88,7 +88,7 @@ class Visualizer:
         self.fig, self.ax = plt.subplots(figsize=self.figsize)
         
         for layer in self.layers:
-            print(f"Drawing layer: {layer.name}")
+            # print(f"Drawing layer: {layer.name}")
             lines, labels = layer.draw(self.ax, self.shared_data)
             self.all_lines.extend(lines)
             self.all_labels.extend(labels)
