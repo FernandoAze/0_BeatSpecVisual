@@ -116,6 +116,16 @@ class Visualizer:
     
     def show(self):
         plt.show()
+
+    def getSVG_Score_Height(self, svg_score: str, maps_json_file: str) -> Optional[float]:
+        '''
+        Extract the height of the score from the SVG file using the maps JSON for reference.
+        
+        Args:
+            svg_score: Path to the SVG score file
+            maps_json_file: Path to the maps JSON file containing note positions
+        '''
+        
     
     def TurnLayersIntoSVG(self, filename: str, plot_size: Tuple[int, int], print_output: bool = False):
         '''
@@ -249,3 +259,52 @@ class Visualizer:
         if print_output==True:
                 print(f"✅ PNG saved successfully: {filename} ---> ({width_px}x{height_px}px @ {dpi}dpi)")
         return output_path
+    
+    def add_New_SVG_Root(self, svg_file: str, width, height, print_output: bool = False):
+        '''
+        Add a new parent SVG root with specified dimensions around existing SVG content.
+        This allows resizing the canvas without affecting the inner content's viewBox or scaling.
+        
+        The old SVG becomes an embedded SVG child with its original viewBox preserved,
+        maintaining all layer positions and scales independently.
+        
+        Args:
+            svg_file: Path to the existing SVG file
+            width: Width in pixels for the new root SVG
+            height: Height in pixels for the new root SVG
+            print_output: Whether to print status messages
+        
+        Returns:
+            tuple: (width, height) of the new root, or False if error
+        '''
+        try:
+            ''' Read the existing SVG file as text '''
+            with open(svg_file, 'r', encoding='UTF-8') as f:
+                svg_content = f.read()
+            
+            ''' Remove XML declaration if present '''
+            if svg_content.startswith('<?xml'):
+                svg_content = svg_content.split('?>', 1)[1].strip()
+            
+            ''' Create new root SVG wrapper with specified dimensions '''
+            new_svg = f'''<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="{width}px"
+     height="{height}px"
+     viewBox="0 0 {width} {height}">
+{svg_content}
+</svg>'''
+            
+            ''' Write the new SVG back to file '''
+            with open(svg_file, 'w', encoding='UTF-8') as f:
+                f.write(new_svg)
+            
+            if print_output:
+                print(f"✓ New SVG root added: {width}x{height}px to {svg_file}")
+            
+            return width, height
+            
+        except Exception as e:
+            print(f"✗ Error adding new SVG root: {e}")
+            return False
