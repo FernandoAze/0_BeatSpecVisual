@@ -25,9 +25,9 @@ def Run_BeatThis(audio_path, output_path: str = None):
     from pathlib import Path
     import numpy as np
 
-    print("\n" + "="*60)
+    print("\033[92m\n" + "="*60)
     print("RUNNING BEATHIS!")
-    print("="*60)
+    print("="*60 + "\033[0m")
     
     waveform, sample_rate = load_audio(audio_path)
     print(f"✓ Audio loaded. Sample rate: {sample_rate}, Duration: {len(waveform) / sample_rate:.2f}s")
@@ -185,12 +185,13 @@ class BeatProbabilityLayer(BeatLayer):
         super().__init__(name)
         self.color = color
     
-    def load_data(self, beat_file: str = None, **kwargs) -> bool:
+    def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
         data = self._load_npz_data(beat_file, ['beat_times', 'beat_probs'])
         if data is None:
             return False
         self._data = data
-        print(f"✓ {self.name}: Loaded beat data")
+        if print_output==True:
+            print(f"✓ {self.name}: Loaded beat data")
         return True
     
     def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:
@@ -217,12 +218,13 @@ class DownbeatProbabilityLayer(BeatLayer):
         super().__init__(name)
         self.color = color
     
-    def load_data(self, beat_file: str = None, **kwargs) -> bool:
+    def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
         data = self._load_npz_data(beat_file, ['beat_times', 'downbeat_probs'])
         if data is None:
             return False
         self._data = data
-        print(f"✓ {self.name}: Loaded downbeat data")
+        if print_output==True:    
+            print(f"✓ {self.name}: Loaded downbeat data")
         return True
     
     def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:
@@ -249,12 +251,13 @@ class BeatAccurateLayer(BeatLayer):
         self.beat_color = beat_color
         self.downbeat_color = downbeat_color
     
-    def load_data(self, beat_file: str = None, **kwargs) -> bool:
+    def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
         data = self._load_npz_data(beat_file, ['detected_beats', 'detected_downbeats'])
         if data is None:
             return False
         self._data = data
-        print(f"✓ {self.name}: Loaded {len(self._data['detected_beats'])} beats, {len(self._data['detected_downbeats'])} downbeats")
+        if print_output==True:  
+            print(f"✓ {self.name}: Loaded {len(self._data['detected_beats'])} beats, {len(self._data['detected_downbeats'])} downbeats")
         return True
     
     def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:
@@ -312,6 +315,319 @@ class BeatAccurateLayer(BeatLayer):
         
         svg_group = f'''  <g id="{self.name}" class="layer beat-accurate">
 {chr(10).join(lines)}
+  </g>'''
+        
+        return svg_group
+
+
+class beatWindowLayer(BeatLayer):
+    """Visualizes beat probability windows with gradient transparency.
+    
+    Shows regions where beat probability exceeds a threshold, with transparency 
+    gradient: opaque at peak confidence, transparent at threshold boundaries.
+    """
+    
+    def __init__(self, name: str = "Beat Window", beat_window: float = 70, color='red', alpha_max: float = 0.3):
+        """
+        Args:
+            name: Layer name
+            beat_window: Probability threshold (0-100 or 0-1, will normalize to 0-100)
+            color: Rectangle fill color
+            alpha_max: Maximum opacity at peak (0-1)
+        """
+        super().__init__(name)
+        self.beat_window = self._normalize_threshold(beat_window)
+        self.color = color
+        self.alpha_max = alpha_max
+    
+    def _normalize_threshold(self, threshold: float) -> float:
+        '''Convert threshold to 0-100 scale if needed'''
+        return threshold * 100 if threshold <= 1.0 else threshold
+    
+    def _find_windows(self, probs: np.ndarray) -> List[Tuple[int, int, float]]:
+        '''
+        Find contiguous regions where probability exceeds threshold.
+        Returns list of (start_idx, end_idx, peak_prob) tuples.
+        '''
+        normalized_probs = self._normalize_probabilities(probs)
+        above_threshold = normalized_probs >= self.beat_window
+        
+        windows = []
+        in_window = False
+        window_start = 0
+        window_probs = []
+        
+        for i, is_above in enumerate(above_threshold):
+            if is_above:
+                if not in_window:
+                    window_start = i
+                    in_window = True
+                window_probs.append(normalized_probs[i])
+            else:
+                if in_window:
+                    peak_prob = np.max(window_probs)
+                    windows.append((window_start, i - 1, peak_prob))
+                    in_window = False
+                    window_probs = []
+        
+        ''' Handle case where window extends to end of data '''
+        if in_window:
+            peak_prob = np.max(window_probs)
+            windows.append((window_start, len(normalized_probs) - 1, peak_prob))
+        
+        return windows
+    
+    def _calculate_opacity(self, idx: int, start_idx: int, end_idx: int, peak_prob: float, 
+                          probs: np.ndarray) -> float:
+        '''
+        Calculate opacity for a point in the window.
+        Opacity = 1.0 at peak, 0.0 at threshold boundaries.
+        '''
+        normalized_probs = self._normalize_probabilities(probs)
+        current_prob = normalized_probs[idx]
+        
+        ''' Distance from threshold (normalized 0-1, where 1 = at peak) '''
+        distance_from_threshold = (current_prob - self.beat_window) / (peak_prob - self.beat_window)
+        distance_from_threshold = np.clip(distance_from_threshold, 0, 1)
+        
+        return distance_from_threshold * self.alpha_max
+    
+    def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
+        data = self._load_npz_data(beat_file, ['beat_times', 'beat_probs'])
+        if data is None:
+            return False
+        self._data = data
+        windows = self._find_windows(self._data['beat_probs'])
+        if print_output==True:    
+            print(f"✓ {self.name}: Loaded beat data with threshold {self.beat_window:.1f}%, found {len(windows)} windows")
+        return True
+    
+    def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:
+        if self._data is None:
+            print(f"✗ {self.name}: No data loaded")
+            return [], []
+        
+        ax2 = self._setup_probability_axis(ax, shared_data)
+        beat_times = self._data['beat_times']
+        beat_probs = self._data['beat_probs']
+        windows = self._find_windows(beat_probs)
+        
+        rectangles = []
+        for start_idx, end_idx, peak_prob in windows:
+            t_start = beat_times[start_idx]
+            t_end = beat_times[end_idx]
+            
+            ''' Draw with full opacity in matplotlib '''
+            rect = plt.Rectangle((t_start, 0), t_end - t_start, 100, 
+                                alpha=1.0, color=self.color, label='Beat Window')
+            ax2.add_patch(rect)
+            rectangles.append(rect)
+        
+        return rectangles, ['Beat Window'] if rectangles else []
+    
+    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
+        '''Convert beat windows to SVG rectangles with opacity gradient'''
+        if self._data is None or "svg_context" not in shared_data:
+            return None
+        
+        ctx = shared_data["svg_context"]
+        beat_times = self._data.get("beat_times", [])
+        beat_probs = self._data.get("beat_probs", [])
+        
+        if len(beat_times) == 0:
+            return None
+        
+        windows = self._find_windows(beat_probs)
+        if len(windows) == 0:
+            return None
+        
+        gradients = []
+        rectangles = []
+        color_hex = self._rgb_to_hex(self.color)
+        
+        for idx, (start_idx, end_idx, peak_prob) in enumerate(windows):
+            t_start = beat_times[start_idx]
+            t_end = beat_times[end_idx]
+            
+            x1 = self._time_to_pixel_x(t_start, ctx)
+            x2 = self._time_to_pixel_x(t_end, ctx)
+            
+            ''' Create unique gradient ID for this window '''
+            gradient_id = f"{self.name.replace(' ', '_')}_gradient_{idx}"
+            
+            ''' Define linear gradient: transparent at edges, opaque at peak '''
+            gradient_svg = f'''    <linearGradient id="{gradient_id}" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:{color_hex};stop-opacity:0"/>
+      <stop offset="50%" style="stop-color:{color_hex};stop-opacity:{self.alpha_max:.2f}"/>
+      <stop offset="100%" style="stop-color:{color_hex};stop-opacity:0"/>
+    </linearGradient>'''
+            gradients.append(gradient_svg)
+            
+            ''' Draw rectangle using gradient '''
+            rect_svg = f'    <rect x="{x1:.2f}" y="0" width="{x2-x1:.2f}" height="{ctx["height_px"]}" fill="url(#{gradient_id})"/>'
+            rectangles.append(rect_svg)
+        
+        svg_group = f'''  <g id="{self.name}" class="layer beat-window">
+    <defs>
+{chr(10).join(gradients)}
+    </defs>
+{chr(10).join(rectangles)}
+  </g>'''
+        
+        return svg_group
+
+
+class downbeatWindowLayer(BeatLayer):
+    """Visualizes downbeat probability windows with gradient transparency.
+    
+    Shows regions where downbeat probability exceeds a threshold, with transparency 
+    gradient: opaque at peak confidence, transparent at threshold boundaries.
+    """
+    
+    def __init__(self, name: str = "Downbeat Window", beat_window: float = 70, color='blue', alpha_max: float = 0.3):
+        """
+        Args:
+            name: Layer name
+            beat_window: Probability threshold (0-100 or 0-1, will normalize to 0-100)
+            color: Rectangle fill color
+            alpha_max: Maximum opacity at peak (0-1)
+        """
+        super().__init__(name)
+        self.beat_window = self._normalize_threshold(beat_window)
+        self.color = color
+        self.alpha_max = alpha_max
+    
+    def _normalize_threshold(self, threshold: float) -> float:
+        '''Convert threshold to 0-100 scale if needed'''
+        return threshold * 100 if threshold <= 1.0 else threshold
+    
+    def _find_windows(self, probs: np.ndarray) -> List[Tuple[int, int, float]]:
+        '''
+        Find contiguous regions where probability exceeds threshold.
+        Returns list of (start_idx, end_idx, peak_prob) tuples.
+        '''
+        normalized_probs = self._normalize_probabilities(probs)
+        above_threshold = normalized_probs >= self.beat_window
+        
+        windows = []
+        in_window = False
+        window_start = 0
+        window_probs = []
+        
+        for i, is_above in enumerate(above_threshold):
+            if is_above:
+                if not in_window:
+                    window_start = i
+                    in_window = True
+                window_probs.append(normalized_probs[i])
+            else:
+                if in_window:
+                    peak_prob = np.max(window_probs)
+                    windows.append((window_start, i - 1, peak_prob))
+                    in_window = False
+                    window_probs = []
+        
+        ''' Handle case where window extends to end of data '''
+        if in_window:
+            peak_prob = np.max(window_probs)
+            windows.append((window_start, len(normalized_probs) - 1, peak_prob))
+        
+        return windows
+    
+    def _calculate_opacity(self, idx: int, start_idx: int, end_idx: int, peak_prob: float, 
+                          probs: np.ndarray) -> float:
+        '''
+        Calculate opacity for a point in the window.
+        Opacity = 1.0 at peak, 0.0 at threshold boundaries.
+        '''
+        normalized_probs = self._normalize_probabilities(probs)
+        current_prob = normalized_probs[idx]
+        
+        ''' Distance from threshold (normalized 0-1, where 1 = at peak) '''
+        distance_from_threshold = (current_prob - self.beat_window) / (peak_prob - self.beat_window)
+        distance_from_threshold = np.clip(distance_from_threshold, 0, 1)
+        
+        return distance_from_threshold * self.alpha_max
+    
+    def load_data(self, beat_file: str = None, **kwargs) -> bool:
+        data = self._load_npz_data(beat_file, ['beat_times', 'downbeat_probs'])
+        if data is None:
+            return False
+        self._data = data
+        windows = self._find_windows(self._data['downbeat_probs'])
+        print(f"✓ {self.name}: Loaded downbeat data with threshold {self.beat_window:.1f}%, found {len(windows)} windows")
+        return True
+    
+    def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:
+        if self._data is None:
+            print(f"✗ {self.name}: No data loaded")
+            return [], []
+        
+        ax2 = self._setup_probability_axis(ax, shared_data)
+        beat_times = self._data['beat_times']
+        downbeat_probs = self._data['downbeat_probs']
+        windows = self._find_windows(downbeat_probs)
+        
+        rectangles = []
+        for start_idx, end_idx, peak_prob in windows:
+            t_start = beat_times[start_idx]
+            t_end = beat_times[end_idx]
+            
+            ''' Draw with full opacity in matplotlib '''
+            rect = plt.Rectangle((t_start, 0), t_end - t_start, 100, 
+                                alpha=1.0, color=self.color, label='Downbeat Window')
+            ax2.add_patch(rect)
+            rectangles.append(rect)
+        
+        return rectangles, ['Downbeat Window'] if rectangles else []
+    
+    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
+        '''Convert downbeat windows to SVG rectangles with opacity gradient'''
+        if self._data is None or "svg_context" not in shared_data:
+            return None
+        
+        ctx = shared_data["svg_context"]
+        beat_times = self._data.get("beat_times", [])
+        downbeat_probs = self._data.get("downbeat_probs", [])
+        
+        if len(beat_times) == 0:
+            return None
+        
+        windows = self._find_windows(downbeat_probs)
+        if len(windows) == 0:
+            return None
+        
+        gradients = []
+        rectangles = []
+        color_hex = self._rgb_to_hex(self.color)
+        
+        for idx, (start_idx, end_idx, peak_prob) in enumerate(windows):
+            t_start = beat_times[start_idx]
+            t_end = beat_times[end_idx]
+            
+            x1 = self._time_to_pixel_x(t_start, ctx)
+            x2 = self._time_to_pixel_x(t_end, ctx)
+            
+            ''' Create unique gradient ID for this window '''
+            gradient_id = f"{self.name.replace(' ', '_')}_gradient_{idx}"
+            
+            ''' Define linear gradient: transparent at edges, opaque at peak '''
+            gradient_svg = f'''    <linearGradient id="{gradient_id}" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:{color_hex};stop-opacity:0"/>
+      <stop offset="50%" style="stop-color:{color_hex};stop-opacity:{self.alpha_max:.2f}"/>
+      <stop offset="100%" style="stop-color:{color_hex};stop-opacity:0"/>
+    </linearGradient>'''
+            gradients.append(gradient_svg)
+            
+            ''' Draw rectangle using gradient '''
+            rect_svg = f'    <rect x="{x1:.2f}" y="0" width="{x2-x1:.2f}" height="{ctx["height_px"]}" fill="url(#{gradient_id})"/>'
+            rectangles.append(rect_svg)
+        
+        svg_group = f'''  <g id="{self.name}" class="layer downbeat-window">
+    <defs>
+{chr(10).join(gradients)}
+    </defs>
+{chr(10).join(rectangles)}
   </g>'''
         
         return svg_group
