@@ -20,7 +20,9 @@ from src.functions.Beat_Layers import (
     BeatLayer,
     BeatProbabilityLayer,
     DownbeatProbabilityLayer,
-    BeatAccurateLayer
+    BeatAccurateLayer,
+    beatWindowLayer,
+    downbeatWindowLayer
 )
 
 WS = Warp_Score()
@@ -31,8 +33,8 @@ the_maps_file = str(root_dir / input_parent_dir / "annotationLayerPP-mei.maps.js
 beat_output_path=str(root_dir / input_parent_dir /"beat_Bach.npz")
 
 #Generate beat file
-# Run_BeatThis(audio_path =the_audio_file,
-#             output_path =beat_output_path)    
+Run_BeatThis(audio_path =the_audio_file,
+            output_path =beat_output_path)    
 
 print("\033[92m==========Spectrogram Creation==========\033[0m")
 spectogramConfig = {
@@ -61,14 +63,22 @@ WS.Allign_Score_and_PNG(png_plot        = generated_Spec_file,
 
 print("\033[92m==========Add Layers==========\033[0m")
 viz=Visualizer()
-viz.add_layer(Onsets_Layer(onset_color=(1, 1, 1), line_Width=0.5))
-viz.add_layer(BeatProbabilityLayer(color=(1, 0, 0)))
-viz.add_layer(DownbeatProbabilityLayer(color=(0, 0, 1)))
+viz.add_layer(Onsets_Layer(onset_color          =(0, 1, 1), line_Width=0.5))
+viz.add_layer(BeatProbabilityLayer(color        =(1, 0, 0)))
+viz.add_layer(DownbeatProbabilityLayer(color    =(0, 0, 1)))
+viz.add_layer(beatWindowLayer(
+                              beat_window       =20, 
+                              color             =(1, 0, 0),
+                              alpha_max         =0.5))  
+viz.add_layer(downbeatWindowLayer(
+                              beat_window       =20, 
+                              color             =(0, 0, 1),
+                              alpha_max         =0.5)) 
 
-viz.load_all_layers(audio_path  =the_audio_file,
-                    maps_file   =the_maps_file,
-                    beat_file   =beat_output_path,
-                    print_output=False)
+viz.load_all_layers(audio_path      =the_audio_file,
+                    maps_file       =the_maps_file,
+                    beat_file       =beat_output_path,
+                    print_output    =False)
 
 fig, ax = viz.draw()
 
@@ -85,6 +95,10 @@ WS.combine_AllignedScore_with_Layers(filename       = str(root_dir / input_paren
                                     print_output    = True)
 
 #This adds space for elements to be moved inside the svg.
-viz.add_New_SVG_Root(svg_file="/home/macacomalandro/Documents/GitHub/0_BeatSpecVisual/src/input_files/BWV-846/FINAL_SVG.svg", width=5500, height=600, print_output=True)
+viz.add_New_SVG_Root(svg_file           =str(root_dir / input_parent_dir / "FINAL_SVG.svg"),
+                     width              =svg_Layer_Width,
+                     height             =svg_Layer_Height*3,
+                     background_color   = "#ffefcf",
+                     print_output       =True)
 
 print("\033[92m==========Completed==========\033[0m")

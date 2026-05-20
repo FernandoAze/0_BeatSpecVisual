@@ -260,18 +260,15 @@ class Visualizer:
                 print(f"✅ PNG saved successfully: {filename} ---> ({width_px}x{height_px}px @ {dpi}dpi)")
         return output_path
     
-    def add_New_SVG_Root(self, svg_file: str, width, height, print_output: bool = False):
+    def add_New_SVG_Root(self, svg_file: str, width, height, background_color: str = '#ffffff', print_output: bool = False):
         '''
         Add a new parent SVG root with specified dimensions around existing SVG content.
-        This allows resizing the canvas without affecting the inner content's viewBox or scaling.
-        
-        The old SVG becomes an embedded SVG child with its original viewBox preserved,
-        maintaining all layer positions and scales independently.
         
         Args:
             svg_file: Path to the existing SVG file
             width: Width in pixels for the new root SVG
             height: Height in pixels for the new root SVG
+            background_color: Color for the background rectangle
             print_output: Whether to print status messages
         
         Returns:
@@ -292,7 +289,9 @@ class Visualizer:
      xmlns:xlink="http://www.w3.org/1999/xlink"
      width="{width}px"
      height="{height}px"
-     viewBox="0 0 {width} {height}">
+     viewBox="0 0 {width} {height}"
+     transform="translate(0, 0)">
+  <rect x="0" y="0" width="100%" height="100%" fill="{background_color}" />
 {svg_content}
 </svg>'''
             
@@ -301,7 +300,7 @@ class Visualizer:
                 f.write(new_svg)
             
             if print_output:
-                print(f"✓ New SVG root added: {width}x{height}px to {svg_file}")
+                print(f"✅ New SVG root added: {width}x{height}px to {svg_file}")
             
             return width, height
             
