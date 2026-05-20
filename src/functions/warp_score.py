@@ -44,11 +44,6 @@ class Onsets_Layer(Layer):
             
             onset_times = [entry['obs_mean_onset'] for entry in data]
             
-            ''' Subtract the first onset time from all onset times to normalize '''
-            if onset_times:
-                first_onset = onset_times[0]
-                onset_times = [t - first_onset for t in onset_times]
-            
             self._data = {
                 "onset_times": onset_times,
             }
@@ -368,6 +363,25 @@ class Warp_Score():
 
         return score_width, score_height
 
+    def get_SVG_Root_Dimensions(self, svg_score: str, print_output: bool = False):
+
+        svg_tree = ET.parse(svg_score)
+        root = svg_tree.getroot()
+
+        width_str = root.get('width')
+        height_str = root.get('height')
+
+        if width_str and height_str:
+            width = float(width_str.replace('px', ''))
+            height = float(height_str.replace('px', ''))
+            if print_output:
+                print(f"✓ SVG root dimensions: width={width}, height={height}")
+            return width, height
+        else:
+            if print_output:
+                print("✗ SVG root does not have explicit width and height attributes")
+            return None
+
     def get_first_and_last_note_positions(self, svg_file: str, maps_file: str, print_output: bool = False):
         ''' Retrieve the x1 attribute (timeline begin) from the first note and last note in SVG using maps file for reference '''
         if svg_file is None or maps_file is None:
@@ -569,17 +583,9 @@ class Warp_Score():
                 for layer_group in layer_groups:
                     ''' Deep copy the layer group to avoid modifying the original tree '''
                     layer_copy = ET.fromstring(ET.tostring(layer_group))
-                    ''' Apply scale transform to layer group '''
-                    current_transform = layer_copy.get('transform', '')
-
-                    scale_factor = tuple(self.scale_Layers(original_score, layers_svg, maps_file, print_output))
-                    new_transform = f"scale({scale_factor[0]}, {scale_factor[1]}) {current_transform}".strip()
-
-                    layer_copy.set('transform', new_transform)
                     layers_group.append(layer_copy)
                 if print_output==True:
                     print(f"✓ Added {len(layer_groups)} layer groups to the Layers group")
-                    print(f"✓ Scale factors applied: scale_x={scale_factor[0]}, scale_y={scale_factor[1]}")
             else:
                 print("⚠ Warning: No layer groups found in layers SVG")
             
