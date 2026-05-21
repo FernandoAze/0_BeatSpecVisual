@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from typing import Dict, Any, List, Tuple, Optional
 import os
+import xml.etree.ElementTree as ET
 
 # class Layer(ABC), defines the template for all layer subclasses.
 class Layer(ABC): 
@@ -125,16 +126,143 @@ class Visualizer:
             svg_score: Path to the SVG score file
             maps_json_file: Path to the maps JSON file containing note positions
         '''
-        
+    def get_SVG_Root_Dimensions(self, svg_warped_score: str, print_output: bool = False):
+
+        svg_tree = ET.parse(svg_warped_score)
+        root = svg_tree.getroot()
+
+        width_str = root.get('width')
+        height_str = root.get('height')
+
+        if width_str and height_str:
+            width = float(width_str.replace('px', ''))
+            height = float(height_str.replace('px', ''))
+            if print_output:
+                print(f"✓ SVG root dimensions: width={width}, height={height}")
+            return width, height
+        else:
+            if print_output:
+                print("✗ SVG root does not have explicit width and height attributes")
+            return None
     
-    def TurnLayersIntoSVG(self, filename: str, plot_size: Tuple[int, int], print_output: bool = False):
+    def get_timeAxis_attributes(self, svg_warped_score: str, print_output: bool = False):
+        '''
+        Extract the total timeline time from the warped score SVG.
+        '''
+        try:
+            svg_tree = ET.parse(svg_warped_score)
+            root = svg_tree.getroot()
+            
+            ''' Handle XML namespaces in SVG files '''
+            namespace = {'svg': 'http://www.w3.org/2000/svg'}
+            
+            ''' Find all g elements and locate the one with class='timeAxis' '''
+            time_axis_group = None
+            ''' Try with namespace first '''
+            for group in root.iter('{http://www.w3.org/2000/svg}g'):
+                if group.get('class') == 'timeAxis':
+                    time_axis_group = group
+                    break
+            
+            ''' If not found, try without namespace '''
+            if time_axis_group is None:
+                for group in root.iter('g'):
+                    if group.get('class') == 'timeAxis':
+                        time_axis_group = group
+                        break
+            
+            if time_axis_group is None:
+                if print_output:
+                    print("✗ Error: timeAxis group not found")
+                return None
+            
+            ''' Get the last child element from the timeAxis group '''
+            children = list(time_axis_group)
+            
+            if not children:
+                if print_output:
+                    print("✗ Error: No child elements found in timeAxis group")
+                return None
+            
+            ''' Get the last child element '''
+            last_element = children[-1]
+            last_text_content = last_element.text
+            
+            if last_text_content is None:
+                if print_output:
+                    print("✗ Error: Last text element is empty")
+                return None
+            
+            ''' Convert to numeric value '''
+            timeline_time = float(last_text_content)
+            
+            ''' Convert to int if it's a whole number '''
+            if timeline_time.is_integer():
+                timeline_time = int(timeline_time)
+            
+            if print_output:
+                print(f"✓ Total timeline time: {timeline_time}")
+            
+            ''' Look for timeline start and end in pixels '''
+            ''' Get the SECOND element of the timeAxis group, it should be a <line> element with x1 and x2 values '''
+            if len(children) < 2:
+                if print_output:
+                    print("✗ Error: Expected at least 2 elements in timeAxis group")
+                return None
+            
+            second_element = children[1]
+            x1_str = second_element.get('x1')
+            x2_str = second_element.get('x2')
+            
+            if x1_str is None or x2_str is None:
+                if print_output:
+                    print("✗ Error: Could not find x1 and x2 attributes in second element")
+                return None
+            
+            x1 = float(x1_str)
+            x2 = float(x2_str)
+            
+            timeline_lengthPx= x2 - x1
+
+            if print_output:
+                print(f"✓ Timeline x1: {x1}, x2: {x2}")
+
+            return timeline_time, timeline_lengthPx
+            
+        except Exception as e:
+            if print_output:
+                print(f"✗ Error extracting timeline time: {e}")
+            return None
+
+    def get_Layers_WidthHeight(self, svg_warped_score: str, print_output: bool = False):
+        '''
+        Get the width and height for the layers based on the warped score SVG dimensions.
+        Returns:
+            Tuple of (width, height) in pixels, or None if error
+        '''
+
+        layersHeight = self.get_SVG_Root_Dimensions(svg_warped_score, print_output)[1]
+        totalWidth = self.get_timeAxis_attributes(svg_warped_score, print_output)[1]
+        
+        totalTimelineTime = self.get_timeAxis_attributes(svg_warped_score, print_output)[0]
+        
+        audioDuration = self.shared_data.get('audio_duration', None)
+
+        layersWidth = (totalWidth / totalTimelineTime) * audioDuration
+
+        if print_output==True:
+            print(f"✓ Layers width: {layersWidth}, Layers height: {layersHeight}")
+            
+        return layersWidth, layersHeight       
+    
+    def TurnLayersIntoSVG(self, filename: str, svg_warped_score: str, plot_size: Optional[Tuple[int, int]] = None, print_output: bool = False):
         '''
         Convert all layers to a vector-based SVG with each layer as a separate group.
         
         Args:
             filename: Output SVG filename
+            svg_warped_score: Path to the warped score SVG file
             plot_size: Tuple of (width, height) in pixels
-            plot_axis: Whether to include axes in the SVG   
             print_output: Whether to print status messages
         
         Returns:
@@ -144,9 +272,14 @@ class Visualizer:
             print("✗ Error: No axes found. Call draw() first.")
             return False
         
-        width_px, height_px = plot_size
+        if plot_size is None:
+            width_px =self.get_Layers_WidthHeight(svg_warped_score, print_output)[0]
+            height_px =self.get_Layers_WidthHeight(svg_warped_score, print_output)[1]
+        else:
+            width_px, height_px = plot_size
+
         ax = self.shared_data["ax"]
-        
+
         ''' Get axis limits for coordinate conversion '''
         x_min, x_max = ax.get_xlim()
         y_min, y_max = ax.get_ylim()
@@ -200,21 +333,24 @@ class Visualizer:
             print(f"✗ Error saving SVG: {e}")
             return False
     
-    def TurnPlotIntoPNG(self, filename: str, plot_size: Tuple[int, int], dpi: int = 150, print_output: bool = False) -> bool:
+    def TurnPlotIntoPNG(self, filename: str, svg_warped_score: str, plot_size: Optional[Tuple[int, int]] = None, dpi: int = 150, print_output: bool = False) -> bool:
         """
         Save visualization as PNG with exact pixel dimensions and no padding/axis.
         
         Args:
             filename: Output PNG filename
+            svg_warped_score: Path to the warped score SVG file
             plot_size: Tuple of (width, height) in pixels (exact)
             dpi: Dots per inch (default 150). PNG will be exactly width × height pixels.
         
         Returns:
             bool: True if successful, False otherwise
         """
-
-        # Unpack plot_size tuple
-        width_px, height_px = plot_size
+        if plot_size is None:
+            width_px =self.get_Layers_WidthHeight(svg_warped_score, print_output)[0]
+            height_px =self.get_Layers_WidthHeight(svg_warped_score, print_output)[1]
+        else:
+            width_px, height_px = plot_size
         
         # Convert pixels to inches using provided DPI for figure creation
         figsize_inches = (width_px / dpi, height_px / dpi)
@@ -282,7 +418,7 @@ class Visualizer:
             ''' Remove XML declaration if present '''
             if svg_content.startswith('<?xml'):
                 svg_content = svg_content.split('?>', 1)[1].strip()
-            
+
             ''' Create new root SVG wrapper with specified dimensions '''
             new_svg = f'''<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg"
