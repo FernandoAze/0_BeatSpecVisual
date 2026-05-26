@@ -363,24 +363,7 @@ class Warp_Score():
 
         return score_width, score_height
 
-    def get_SVG_Root_Dimensions(self, svg_score: str, print_output: bool = False):
 
-        svg_tree = ET.parse(svg_score)
-        root = svg_tree.getroot()
-
-        width_str = root.get('width')
-        height_str = root.get('height')
-
-        if width_str and height_str:
-            width = float(width_str.replace('px', ''))
-            height = float(height_str.replace('px', ''))
-            if print_output:
-                print(f"✓ SVG root dimensions: width={width}, height={height}")
-            return width, height
-        else:
-            if print_output:
-                print("✗ SVG root does not have explicit width and height attributes")
-            return None
 
     def get_first_and_last_note_positions(self, svg_file: str, maps_file: str, print_output: bool = False):
         ''' Retrieve the x1 attribute (timeline begin) from the first note and last note in SVG using maps file for reference '''
