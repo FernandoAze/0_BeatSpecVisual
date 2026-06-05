@@ -40,6 +40,25 @@ pip install -r requirements.txt
 
 ## How to Run
 
+### Required Files
+	This visualization tool depends on 3 source files these are:
+	- The audio file in .wav format, with the recording that shall be analized.
+	- The corresponding warped score in .
+	- The maps.json file that contains the onset times linked to each note ID (file also required by ScoreWarp).
+	- A .npz with the Beat Tracked audio that shall be visualized.
+
+
+### Getting the audio
+The audio/recording just needs to be in .wav format. 
+
+### Getting the MAPSfile
+The Maps is a file that can be created through https://github.com/trompamusic/trompa-align.
+
+Weigl, D. (2020). Multimodal Music Information Alignment.  https://trompamusic.eu/deliverables/TR-D3.5-Multimodal_Music_Information_Alignment_v2.pdf (accessed 18 Dec 2024) 
+
+### Getting the Score
+The score that is needed to run should be obtained Through ScoreWarp. 
+
 ### Running Example Files
 
 The project includes example scripts in the `examples/` folder.

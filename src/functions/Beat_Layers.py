@@ -17,7 +17,7 @@ Utility class to run BeatThis! beat detection and save results.
 Wraps the run_beat_detection function from beat_this_analysis_gen.py.
 """
 @staticmethod
-def Run_BeatThis(audio_path, output_path: str = None):
+def Run_BeatThis(audio_path, output_path: str = None, print_output: bool = False) -> str:
     #This functions makes a beat prediction using BeatThis! Algorithm. 
     #It saves the output in a .npz that will be loaded into the beat visualization layers.
     from beat_this.inference import Audio2Frames, Audio2Beats
@@ -25,16 +25,21 @@ def Run_BeatThis(audio_path, output_path: str = None):
     from pathlib import Path
     import numpy as np
 
-    print("\033[92m\n" + "="*60)
-    print("RUNNING BEATHIS!")
-    print("="*60 + "\033[0m")
+    if print_output:
+        print("\033[92m\n" + "="*60)
+        print("RUNNING BEATHIS!")
+        print("="*60 + "\033[0m")
     
     waveform, sample_rate = load_audio(audio_path)
-    print(f"✓ Audio loaded. Sample rate: {sample_rate}, Duration: {len(waveform) / sample_rate:.2f}s")
     
-    print("Initializing model (downloading checkpoint if needed)...")
+    if print_output:
+        print(f"✓ Audio loaded. Sample rate: {sample_rate}, Duration: {len(waveform) / sample_rate:.2f}s")
+    
+    if print_output:
+        print("Initializing model (downloading checkpoint if needed)...")
     detector = Audio2Frames(checkpoint_path="final0", device="cpu")
-    print("✓ Model initialized. Processing audio...")
+    if print_output:
+        print("✓ Model initialized. Processing audio...")
 
     beat_logits, downbeat_logits = detector(waveform, sample_rate)
 
@@ -42,11 +47,13 @@ def Run_BeatThis(audio_path, output_path: str = None):
     target_sr = 22050
     beat_times = np.arange(len(beat_logits)) * (hop_length / target_sr)
     
-    print("Detecting beat positions...")
+    if print_output:
+        print("Detecting beat positions...")
     beat_detector = Audio2Beats(checkpoint_path="final0", device="cpu")
     detected_beats, detected_downbeats = beat_detector(waveform, sample_rate)
     
-    print(f"✓ Detected {len(detected_beats)} beats and {len(detected_downbeats)} downbeats")
+    if print_output:
+        print(f"✓ Detected {len(detected_beats)} beats and {len(detected_downbeats)} downbeats")
     
     # Create absolute path for output
     module_dir = Path(__file__).parent
@@ -54,7 +61,8 @@ def Run_BeatThis(audio_path, output_path: str = None):
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / "beat_probs.npz"
     
-    print("✓ Saving output files...")
+    if print_output:
+        print("✓ Saving output files...")
     if output_path is None:
         output_path = str(output_file)
 
