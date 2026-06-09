@@ -91,7 +91,7 @@ Contact: up202308655@up.pt
 
 ### 4.2 Chopin Study Application
 
-> **[Example Content Placeholder]**
+> **[Example Content]**
 > 
 > Application to Chopin Op. 10 No. 3 performance shows the system's capability to handle complex rubato and tempo variation through dynamic score warping (Figure 2).
 
