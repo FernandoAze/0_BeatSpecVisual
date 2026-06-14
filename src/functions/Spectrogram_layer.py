@@ -23,7 +23,7 @@ class Spectrogram(Layer):
         self.color_map = color_map
     # =========
 
-    def load_data(self, audio_path: str, **kwargs) -> bool:
+    def load_data(self, audio_path: str, print_output: bool = False, **kwargs) -> bool:
         # ========================================================
         # LOAD AUDIO & COMPUTE SPECTROGRAM
         from modusa import load
@@ -51,7 +51,8 @@ class Spectrogram(Layer):
                 "filename": filename,
                 "audio": audio
             }
-            print(f"✓ SpectrogramLayer: Loaded {filename}")
+            if print_output:
+                print(f"✓ SpectrogramLayer: Loaded {filename}")
             return True
         # LOAD AUDIO & COMPUTE SPECTROGRAM
         # ========================================================

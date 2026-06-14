@@ -16,7 +16,7 @@ from .visualization_system import Layer
 Utility class to run BeatThis! beat detection and save results.
 Wraps the run_beat_detection function from beat_this_analysis_gen.py.
 """
-@staticmethod
+
 def Run_BeatThis(audio_path, output_path: str = None, print_output: bool = False) -> str:
     #This functions makes a beat prediction using BeatThis! Algorithm. 
     #It saves the output in a .npz that will be loaded into the beat visualization layers.
@@ -27,7 +27,7 @@ def Run_BeatThis(audio_path, output_path: str = None, print_output: bool = False
 
     if print_output:
         print("\033[92m\n" + "="*60)
-        print("RUNNING BEATHIS!")
+        print("RUNNING BEATTHIS!")
         print("="*60 + "\033[0m")
     
     waveform, sample_rate = load_audio(audio_path)
@@ -72,7 +72,8 @@ def Run_BeatThis(audio_path, output_path: str = None, print_output: bool = False
             downbeat_probs=downbeat_logits.numpy(),
             detected_beats=detected_beats,
             detected_downbeats=detected_downbeats)
-    print(f"✓ File saved: {output_path}")
+    if print_output:
+        print(f"✓ File saved: {output_path}")
     return output_path
 
 class BeatLayer(Layer):
@@ -557,13 +558,14 @@ class downbeatWindowLayer(BeatLayer):
         
         return distance_from_threshold * self.alpha_max
     
-    def load_data(self, beat_file: str = None, **kwargs) -> bool:
+    def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
         data = self._load_npz_data(beat_file, ['beat_times', 'downbeat_probs'])
         if data is None:
             return False
         self._data = data
         windows = self._find_windows(self._data['downbeat_probs'])
-        print(f"✓ {self.name}: Loaded downbeat data with threshold {self.beat_window:.1f}%, found {len(windows)} windows")
+        if print_output:
+            print(f"✓ {self.name}: Loaded downbeat data with threshold {self.beat_window:.1f}%, found {len(windows)} windows")
         return True
     
     def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:

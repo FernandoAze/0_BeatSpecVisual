@@ -11,6 +11,11 @@ from matplotlib.axes import Axes
 from typing import Dict, Any, List, Tuple, Optional
 import os
 import xml.etree.ElementTree as ET
+from PIL import Image
+import base64
+import io
+from pathlib import Path
+import sys
 
 # class Layer(ABC), defines the template for all layer subclasses.
 class Layer(ABC): 
@@ -442,4 +447,151 @@ class Visualizer:
             
         except Exception as e:
             print(f"✗ Error adding new SVG root: {e}")
+            return False
+    
+    def Align_Score_and_PNG(self, png_plot: str, svg_score: str, maps_json_file: str, print_output: bool = False) -> bool:
+        ''' Align PNG visualization with score SVG by embedding as base64 and positioning at timeAxis '''
+        
+        ''' Get timeAxis bounds to size the Layers properly '''
+        from .warp_score import Warp_Score
+        ws = Warp_Score()
+        timeAxis_bounds = ws.get_timeAxis_bounds(svg_score, print_output)
+        if timeAxis_bounds is None:
+            print("✗ Could not get timeAxis bounds")
+            return False
+        
+        timeAxis_first_x, timeAxis_last_x, timeline_width = timeAxis_bounds
+        
+        ''' check plot width and height '''
+        png_img = Image.open(png_plot)
+        png_width, png_height = png_img.size
+        
+        ''' Target height for the PNG display '''
+        target_png_height = 110
+        
+        ''' Calculate scale factors '''
+        scale_x = timeline_width / png_width
+        scale_y = target_png_height / png_height
+
+        ''' Parse SVG file to use as base '''
+        svg_tree = ET.parse(svg_score)
+        composite_svg = svg_tree.getroot()
+
+        ''' Register namespace '''
+        svg_ns = 'http://www.w3.org/2000/svg'
+        ET.register_namespace('', svg_ns)
+
+        ''' Embed PNG as base64 '''
+        png_buffer = io.BytesIO()
+        png_img.save(png_buffer, format='PNG')
+        png_base64 = base64.b64encode(png_buffer.getvalue()).decode('utf-8')
+
+        ns = {'svg': 'http://www.w3.org/2000/svg'}
+        
+        ''' Find the <g> element with class='timeAxis' - try with namespace first, then without '''
+        time_axis = composite_svg.find(".//svg:g[@class='timeAxis']", ns)
+        if time_axis is None:
+            ''' Try without namespace prefix '''
+            time_axis = composite_svg.find(".//g[@class='timeAxis']")
+        if time_axis is None:
+            print("✗ Could not find <g> element with class='timeAxis'")
+            return False
+        
+        ''' Create Layers group positioned at timeAxis first line '''
+        layers_group = ET.Element('g', {
+            'class': 'Layers',
+            'transform': f'translate({timeAxis_first_x}, 0)',
+            'width': str(timeline_width),
+            'height': str(int(png_height * scale_y))
+        })
+        
+        ''' Create PNG image element with scaled dimensions '''
+        png_image_elem = ET.Element('image', {
+            'x': '0',
+            'y': '0',
+            'href': f'data:image/png;base64,{png_base64}'
+        })
+        
+        ''' Add PNG to Layers group '''
+        layers_group.append(png_image_elem)
+        
+        ''' Find parent of timeAxis (the root SVG) and insert Layers group before timeAxis '''
+        parent_map = {c: p for p in composite_svg.iter() for c in p}
+        time_axis_parent = parent_map.get(time_axis, composite_svg)
+        
+        ''' Get the index of timeAxis in its parent '''
+        time_axis_index = list(time_axis_parent).index(time_axis)
+        
+        ''' Insert Layers group at the first position (before timeAxis) '''
+        time_axis_parent.insert(0, layers_group)
+
+        ''' Save composite SVG '''
+        root_dir = Path(__file__).parent.parent.parent
+        sys.path.insert(0, str(root_dir))
+        output_dir = root_dir / "output"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        ''' Extract maps filename stem and create output filename '''
+        maps_filename = Path(maps_json_file).stem
+        output_filename = f"{maps_filename}_aligned.svg"
+        output_path = str(output_dir / output_filename)
+        
+        composite_tree = ET.ElementTree(composite_svg)
+        composite_tree.write(output_path, encoding='UTF-8', xml_declaration=True)
+        
+        if print_output:
+            print(f"✓ Composite SVG created: {output_path}")
+        return output_path
+
+    def combine_AlignedScore_with_Layers(self, filename: str, original_score: str, aligned_svg: str, layers_svg: str, maps_file: str, print_output: bool = False):
+        ''' Combine aligned score SVG with visualization layers from TurnLayersIntoSVG '''
+        try:
+            ''' Parse both SVG files '''
+            aligned_tree = ET.parse(aligned_svg)
+            aligned_root = aligned_tree.getroot()
+            
+            layers_tree = ET.parse(layers_svg)
+            layers_root = layers_tree.getroot()
+            
+            ''' Define SVG namespace '''
+            svg_ns = 'http://www.w3.org/2000/svg'
+            ns = {'svg': svg_ns}
+            
+            ''' Find the Layers group at the root level (sibling of timeAxis) '''
+            layers_group = aligned_root.find(".//svg:g[@class='Layers']", ns)
+            if layers_group is None:
+                ''' Try without namespace prefix '''
+                layers_group = aligned_root.find(".//g[@class='Layers']")
+            if layers_group is None:
+                print("✗ Could not find <g class='Layers'> at root level")
+                return False
+            
+            ''' Extract all layer groups from the layers SVG '''
+            layer_groups = layers_root.findall(".//svg:g", ns)
+            
+            if len(layer_groups) > 0:
+                ''' Add layer groups to the Layers group '''
+                for layer_group in layer_groups:
+                    ''' Deep copy the layer group to avoid modifying the original tree '''
+                    layer_copy = ET.fromstring(ET.tostring(layer_group))
+                    layers_group.append(layer_copy)
+                if print_output==True:
+                    print(f"✓ Added {len(layer_groups)} layer groups to the Layers group")
+            else:
+                print("⚠ Warning: No layer groups found in layers SVG")
+            
+            ''' Save the combined SVG to output folder '''
+            root_dir = Path(__file__).parent.parent.parent
+            output_dir = root_dir / "output"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = str(output_dir / filename)
+            
+            aligned_tree.write(output_path, encoding='UTF-8', xml_declaration=True)
+            
+            if print_output:
+                print(f"✓ Combined SVG created: {output_path}")
+            return True
+            
+        except Exception as e:
+            print(f"✗ Error combining SVG files: {e}")
             return False

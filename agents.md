@@ -13,7 +13,6 @@ LoadFiles class in src/functions/Load_Files.py is used to retrieve files that ar
 - `draw(ax, shared_data)` — Draw visualization, return (lines, labels)
 
 ## Data 
-- Files that are called by "class LoadFiles" methods. The class is defined in "src/functions/Load_Files.py"
 - MAPS JSON: LoadFiles().load_maps()— contains obs_mean_onset times and ID for score elements. This is used by the scorewarp for the score alignment.
 - Beat analysis: LoadFiles().load_beat_data()
 - Score file: LoadFiles().load_score() - it is an SVG file image. 

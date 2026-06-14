@@ -1,9 +1,9 @@
-# BeatSpec Visual 
+# MIRVisualScore
 THIS README IS STILL ON THE WORKS
 
 ## Description
 
-BeatSpecVisual is a modular system for beat detection and visualization. The codebase is organized for clarity and extensibility, with core logic, visualization layers, and utilities separated into logical modules.
+MIRVisualScore is a modular system for beat detection and visualization. The codebase is organized for clarity and extensibility, with core logic, visualization layers, and utilities separated into logical modules.
 
 ---
 
@@ -42,8 +42,8 @@ pip install -r requirements.txt
 
 ### Required Files
 	This visualization tool depends on 3 source files these are:
-	- The audio file in .wav format, with the recording that shall be analized.
-	- The corresponding warped score in .
+	- The audio file in .wav format, with the recording that shall be analyzed.
+	- The corresponding warped score in SVG.
 	- The maps.json file that contains the onset times linked to each note ID (file also required by ScoreWarp).
 	- A .npz with the Beat Tracked audio that shall be visualized.
 
