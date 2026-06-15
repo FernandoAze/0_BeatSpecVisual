@@ -2,7 +2,6 @@
 This script demonstrates the full capability of MIRVisualScore.
 '''
 
-from pickle import FALSE
 import sys
 from pathlib import Path
 import json

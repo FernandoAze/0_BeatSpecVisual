@@ -2,7 +2,7 @@
 This script demonstrates the full capability of MIRVisualScore.
 '''
 
-from pickle import FALSE
+
 import sys
 from pathlib import Path
 import json
@@ -11,7 +11,7 @@ import json
 script_dir = Path(__file__).parent
 root_dir = script_dir.parent
 sys.path.insert(0, str(root_dir))
-input_parent_dir = str("src/input_files/BWV856")
+input_parent_dir = str("src/input_files/BWV856/Performance1")
 
 from src.functions.visualization_system import Visualizer
 from src.functions.warp_score import Onsets_Layer, Warp_Score
@@ -28,18 +28,15 @@ from src.functions.Beat_Layers import (
 
 WS = Warp_Score()
 
-audio_file_example1 = str(root_dir / input_parent_dir / "Performance1/BWV856_AndrasSchiff.wav")
-svg_score_example1 = str(root_dir / input_parent_dir / "Performance1/SW andras.svg")
-maps_file_example1 = str(root_dir / input_parent_dir / "Performance1/andras.maps.json")
-beat_example1=str(root_dir / input_parent_dir /"Performance1/beat_example1.npz")
+audio_file_example1 = str(root_dir / input_parent_dir / "BWV856_AndrasSchiff.wav")
+svg_score_example1 = str(root_dir / input_parent_dir / "SW andras.svg")
+maps_file_example1 = str(root_dir / input_parent_dir / "andras.maps.json")
+beat_example1=str(root_dir / input_parent_dir /"beat_example1.npz")
 
 print("==================" + "Generate BT" + "==================")
 #Generate beat file
-Run_BeatThis(audio_path =audio_file_example1,
-            output_path =beat_example1)    
-
-svg_Layer_Width = Visualizer().get_SVG_Root_Dimensions(svg_score_example1)[0]
-svg_Layer_Height = Visualizer().get_SVG_Root_Dimensions(svg_score_example1)[1]
+# Run_BeatThis(audio_path =audio_file_example1,
+#             output_path =beat_example1)    
 
 spectrogramConfig = {
     "freq_window": (20, 2000),
@@ -57,12 +54,9 @@ spec_example1=viz_spec.TurnPlotIntoPNG("example1 SPECTROGRAM.png",
                                             dpi                 =300,
                                             print_output        =False)
 
-
-print("==================" + "Generate Layers SVG" + "==================")
-example1=Visualizer()
-
 print("==================" + "Align PNG with Score" + "==================")
-example1_aligned = example1.Align_Score_and_PNG(  png_plot        = spec_example1,
+example1=Visualizer()
+example1_aligned = example1.Align_Score_and_PNG(png_plot    = spec_example1,
                                             svg_score       = svg_score_example1, 
                                             maps_json_file  = maps_file_example1, 
                                             print_output    = False)
@@ -87,36 +81,17 @@ example1.load_all_layers(   audio_path      =audio_file_example1,
 
 fig, ax = example1.draw()
 
-Layers_SVG = example1.TurnLayersIntoSVG(filename            = str(root_dir / input_parent_dir / "example1 LAYERS.svg"), 
-                                        svg_warped_score    = svg_score_example1,
-                                        print_output        = False)
+# Layers_SVG = example1.TurnLayersIntoSVG(filename            = str(root_dir / input_parent_dir / "example1 LAYERS.svg"), 
+#                                         svg_warped_score    = svg_score_example1,
+#                                         print_output        = False)
 
-print("==================" + "Combine Aligned Score with Layers" + "==================")
-example1.combine_AlignedScore_with_Layers(filename       = str(root_dir / input_parent_dir / "example1 ALL.svg"),
-                                    original_score  = svg_score_example1, 
-                                    aligned_svg     = example1_aligned,
-                                    layers_svg      = str(root_dir / input_parent_dir / "example1 LAYERS.svg"),
-                                    maps_file       = maps_file_example1,
-                                    print_output    = False)
-
-print("==================" + "Generate Final SVG" + "==================")
-
-EndVisualization = Visualizer()
-
-''' Define the layers to combine with vertical offsets '''
-svg_layers_to_combine = [
-    (str(root_dir / input_parent_dir / "example1 ALL.svg"), 0)
-]
-
-''' Create the final composite SVG '''
-EndVisualization.create_final_SVG(
-                                    width              =svg_Layer_Width + 300,
-                                    height             =svg_Layer_Height*3,
-                                    background_color   = "#ffefcf",
-                                    svg_layers         = svg_layers_to_combine,
-                                    output_file        = "FINAL_example1.svg",
-                                    print_output       = True)
-
+# print("==================" + "Combine Aligned Score with Layers" + "==================")
+# example1.combine_AlignedScore_with_Layers(filename       = str(root_dir / input_parent_dir / "example1 ALL.svg"),
+#                                     original_score  = svg_score_example1, 
+#                                     aligned_svg     = example1_aligned,
+#                                     layers_svg      = str(root_dir / input_parent_dir / "example1 LAYERS.svg"),
+#                                     maps_file       = maps_file_example1,
+#                                     print_output    = False)
 
 
 print("Done!")

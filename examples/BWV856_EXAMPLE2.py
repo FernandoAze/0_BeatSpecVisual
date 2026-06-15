@@ -2,7 +2,6 @@
 This script demonstrates the full capability of MIRVisualScore.
 '''
 
-from pickle import FALSE
 import sys
 from pathlib import Path
 import json
@@ -34,12 +33,10 @@ maps_file_example2 = str(root_dir / input_parent_dir / "Performance2/glenn.maps.
 beat_example2=str(root_dir / input_parent_dir /"beat_Bach.npz")
 
 print("==================" + "Generate BT" + "==================")
-#Generate beat file
-# Run_BeatThis(audio_path =audio_file_example2,
-#             output_path =beat_example2)    
 
-svg_Layer_Width = Visualizer().get_SVG_Root_Dimensions(svg_score_example2)[0]
-svg_Layer_Height = Visualizer().get_SVG_Root_Dimensions(svg_score_example2)[1]
+#Generate beat file
+Run_BeatThis(audio_path =audio_file_example2,
+            output_path =beat_example2)    
 
 spectrogramConfig = {
     "freq_window": (20, 2000),
@@ -57,11 +54,9 @@ spec_example2=viz_spec.TurnPlotIntoPNG("example2 SPECTROGRAM.png",
                                             dpi                 =300,
                                             print_output        =False)
 
-
-print("==================" + "Generate Layers SVG" + "==================")
+print("==================" + "Align PNG with Score" + "==================")
 example2=Visualizer()
 
-print("==================" + "Align PNG with Score" + "==================")
 example2_aligned = example2.Align_Score_and_PNG(  png_plot        = spec_example2,
                                             svg_score       = svg_score_example2, 
                                             maps_json_file  = maps_file_example2, 
@@ -98,28 +93,6 @@ example2.combine_AlignedScore_with_Layers(filename       = str(root_dir / input_
                                     layers_svg      = str(root_dir / input_parent_dir / "example2 LAYERS.svg"),
                                     maps_file       = maps_file_example2,
                                     print_output    = False)
-
-print("==================" + "Generate Final SVG" + "==================")
-
-EndVisualization = Visualizer()
-
-''' Define the layers to combine with vertical offsets '''
-svg_layers_to_combine = [
-    (str(root_dir / input_parent_dir / "example2 ALL.svg"), 0),
-    (str(root_dir / input_parent_dir / "example1 ALL.svg"), 200)
-
-]
-
-''' Create the final composite SVG '''
-EndVisualization.create_final_SVG(
-                                    width              =svg_Layer_Width + 300,
-                                    height             =svg_Layer_Height*3,
-                                    background_color   = "#ffefcf",
-                                    svg_layers         = svg_layers_to_combine,
-                                    output_file        = "FINAL_example2.svg",
-                                    print_output       = True)
-
-
 
 print("Done!")
 

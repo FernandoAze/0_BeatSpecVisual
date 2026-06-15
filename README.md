@@ -1,14 +1,14 @@
-# BeatSpecVisual
+# MIRVisualScore
 
 A modular Python system for beat detection, score alignment, and synchronized visualization of music performances with their corresponding sheet music.
 
 ## Overview
 
-BeatSpecVisual combines audio analysis, beat tracking, and score warping into a composable visualization framework. The project uses a **layer-based architecture** where all visualization components inherit from a base `Layer` class, enabling flexible and extensible visualizations.
+MIRVisualScore combines audio analysis, beat tracking, and score warping into a composable visualization framework. The project uses a **layer-based architecture** where all visualization components inherit from a base `Layer` class, enabling flexible and extensible visualizations.
 
 ## Requirements
 
-- Python 3.12.3 or higher
+- Python 3.12.3
 
 ## Installation
 
@@ -81,7 +81,7 @@ To run visualizations, you need:
 ## Project Structure
 
 ```
-0_BeatSpecVisual/
+MIRVisualScore/
 ├── README.md
 ├── requirements.txt
 ├── agents.md
@@ -121,34 +121,6 @@ Example scripts in the `examples/` folder demonstrate the system:
 ```bash
 cd examples
 python BWV856_EXAMPLE1.py
-```
-
-### Creating Custom Visualizations
-
-```python
-from src.functions.visualization_system import Visualizer
-from src.functions.Spectrogram_layer import Spectrogram
-from src.functions.Beat_Layers import BeatProbabilityLayer
-
-# Create visualizer
-viz = Visualizer(figsize=(14, 6))
-
-# Add layers
-viz.add_layer(Spectrogram())
-viz.add_layer(BeatProbabilityLayer())
-
-# Load data
-viz.load_all_layers(
-    audio_path="path/to/audio.wav",
-    beat_file="path/to/beat_data.npz",
-    maps_file="path/to/score.maps.json"
-)
-
-# Render and save
-viz.draw()
-viz.show()
-viz.TurnPlotIntoPNG("output.png", plot_size=(1920, 1080))
-viz.TurnInToSVG("output.svg")
 ```
 
 ## Output

@@ -2,7 +2,6 @@
 This script demonstrates the full capability of MIRVisualScore.
 '''
 
-from pickle import FALSE
 import sys
 from pathlib import Path
 import json
@@ -35,8 +34,8 @@ beat_example2=str(root_dir / input_parent_dir /"beat_Bach.npz")
 
 print("==================" + "Generate BT" + "==================")
 #Generate beat file
-# Run_BeatThis(audio_path =audio_file_example2,
-#             output_path =beat_example2)    
+Run_BeatThis(audio_path =audio_file_example2,
+            output_path =beat_example2)    
 
 svg_Layer_Width = Visualizer().get_SVG_Root_Dimensions(svg_score_example2)[0]
 svg_Layer_Height = Visualizer().get_SVG_Root_Dimensions(svg_score_example2)[1]
