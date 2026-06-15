@@ -35,8 +35,8 @@ beat_output_path=str(root_dir / input_parent_dir /"beat_Bach.npz")
 
 print("==================" + "Generate BT" + "==================")
 #Generate beat file
-Run_BeatThis(audio_path =example2_audio_file,
-            output_path =beat_output_path)    
+# Run_BeatThis(audio_path =example2_audio_file,
+#             output_path =beat_output_path)    
 
 svg_Layer_Width = Visualizer().get_SVG_Root_Dimensions(the_svg_score)[0]
 svg_Layer_Height = Visualizer().get_SVG_Root_Dimensions(the_svg_score)[1]
@@ -51,20 +51,19 @@ viz_spec.add_layer(Spectrogram(**spectrogramConfig))
 viz_spec.load_all_layers(audio_path=example2_audio_file)
 
 print("==================" + "Generate Spectrogram PNG" + "==================")
-generated_Spec_file=viz_spec.TurnPlotIntoPNG("WERE SPECTROGRAM.png",
+generated_Spec_file=viz_spec.TurnPlotIntoPNG("example2 SPECTROGRAM.png",
                                             svg_warped_score    =the_svg_score,
                                             dpi                 =300,
                                             print_output        =False)
 
-print("==================" + "Align PNG with Score" + "==================")
-viz_align = Visualizer()
-example2_aligned = viz_align.Align_Score_and_PNG(  png_plot        = generated_Spec_file,
-                                                   svg_score       = the_svg_score, 
-                                                   maps_json_file  = the_maps_file, 
-                                                   print_output    = False)
-
 print("==================" + "Generate Layers SVG" + "==================")
 example2=Visualizer()
+
+print("==================" + "Align PNG with Score" + "==================")
+example2_aligned = example2.Align_Score_and_PNG(  png_plot        = generated_Spec_file,
+                                            svg_score       = the_svg_score, 
+                                            maps_json_file  = the_maps_file, 
+                                            print_output    = False)
 
 example2.add_layer(Onsets_Layer(onset_color          =(1, 1, 1), line_Width=0.5))
 example2.add_layer(BeatAccurateLayer(beat_color      =(1, 0, 0),
@@ -86,27 +85,27 @@ example2.load_all_layers(   audio_path      =example2_audio_file,
 
 fig, ax = example2.draw()
 
-example2.TurnLayersIntoSVG(filename            = str(root_dir / input_parent_dir / "WERE LAYERS.svg"), 
+Layers_SVG = example2.TurnLayersIntoSVG(filename            = str(root_dir / input_parent_dir / "example2 LAYERS.svg"), 
                                         svg_warped_score    = the_svg_score,
                                         print_output        = False)
 
 print("==================" + "Combine Aligned Score with Layers" + "==================")
-example2.combine_AlignedScore_with_Layers(filename       = str(root_dir / input_parent_dir / "WERE FINAL_SVG.svg"),
-                                          original_score  = the_svg_score, 
-                                          aligned_svg     = example2_aligned,
-                                          layers_svg      = str(root_dir / input_parent_dir / "WERE LAYERS.svg"),
-                                          maps_file       = the_maps_file,
-                                          print_output    = False)
+example2.combine_AlignedScore_with_Layers(filename       = str(root_dir / input_parent_dir / "example2 ALL.svg"),
+                                    original_score  = the_svg_score, 
+                                    aligned_svg     = example2_aligned,
+                                    layers_svg      = str(root_dir / input_parent_dir / "example2 LAYERS.svg"),
+                                    maps_file       = the_maps_file,
+                                    print_output    = False)
 
 print("==================" + "Generate Final SVG" + "==================")
-#This provides a background for the final SVG, this is not necessary, but I find it useful for not having a transparent background.
-EndVisualization = Visualizer()
-EndVisualization.add_New_SVG_Root(
-                                    svg_file           =str(root_dir / input_parent_dir / "WERE FINAL_SVG.svg"),
-                                    width              =svg_Layer_Width + 300,
-                                    height             =svg_Layer_Height*3,
-                                    background_color   = "#ffefcf",
-                                    print_output       =False)
+# #This provides a background for the final SVG, this is not necessary, but I find it useful for not having a transparent background.
+# EndVisualization = Visualizer()
+# EndVisualization.add_New_SVG_Root(
+#                                     svg_file           =str(root_dir / input_parent_dir / "WERE FINAL_SVG.svg"),
+#                                     width              =svg_Layer_Width + 300,
+#                                     height             =svg_Layer_Height*3,
+#                                     background_color   = "#ffefcf",
+#                                     print_output       =False)
 
 print("Done!")
 

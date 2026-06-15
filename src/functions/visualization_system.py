@@ -448,7 +448,65 @@ class Visualizer:
         except Exception as e:
             print(f"✗ Error adding new SVG root: {e}")
             return False
-    
+
+    def combine_AlignedScore_with_Layers(self, filename: str, original_score: str, aligned_svg: str, layers_svg: str, maps_file: str, offset_y: int = 0, print_output: bool = False):
+        ''' Combine aligned score SVG with visualization layers from TurnLayersIntoSVG '''
+        try:
+            ''' Parse both SVG files '''
+            aligned_tree = ET.parse(aligned_svg)
+            aligned_root = aligned_tree.getroot()
+            
+            layers_tree = ET.parse(layers_svg)
+            layers_root = layers_tree.getroot()
+            
+            ''' Define SVG namespace '''
+            svg_ns = 'http://www.w3.org/2000/svg'
+            ns = {'svg': svg_ns}
+            
+            ''' Find the Layers group at the root level '''
+            layers_group = aligned_root.find(".//svg:g[@class='Layers']", ns)
+            if layers_group is None:
+                ''' Try without namespace prefix '''
+                layers_group = aligned_root.find(".//g[@class='Layers']")
+            if layers_group is None:
+                print("✗ Could not find <g class='Layers'> at root level")
+                return False
+            
+            ''' Extract only direct child layer groups from the layers SVG (not nested elements) '''
+            layer_groups = layers_root.findall("./svg:g", ns)
+            
+            ''' If not found with namespace, try without '''
+            if len(layer_groups) == 0:
+                layer_groups = layers_root.findall("./g")
+            
+            if len(layer_groups) > 0:
+                ''' Add layer groups to the Layers group '''
+                for layer_group in layer_groups:
+                    ''' Deep copy the layer group to avoid modifying the original tree '''
+                    layer_copy = ET.fromstring(ET.tostring(layer_group))
+                    layers_group.append(layer_copy)
+                if print_output==True:
+                    print(f"✓ Added {len(layer_groups)} layer groups to the Layers group")
+            else:
+                print("⚠ Warning: No layer groups found in layers SVG")
+            
+            ''' Save the combined SVG to output folder '''
+            root_dir = Path(__file__).parent.parent.parent
+            output_dir = root_dir / "output"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = str(output_dir / filename)
+            
+            aligned_tree.write(output_path, encoding='UTF-8', xml_declaration=True)
+            
+            if print_output:
+                print(f"✓ Combined SVG created: {output_path}")
+            return True
+            
+        except Exception as e:
+            print(f"✗ Error combining SVG files: {e}")
+            return False
+        
+
     def Align_Score_and_PNG(self, png_plot: str, svg_score: str, maps_json_file: str, print_output: bool = False) -> bool:
         ''' Align PNG visualization with score SVG by embedding as base64 and positioning at timeAxis '''
         
@@ -542,56 +600,3 @@ class Visualizer:
         if print_output:
             print(f"✓ Composite SVG created: {output_path}")
         return output_path
-
-    def combine_AlignedScore_with_Layers(self, filename: str, original_score: str, aligned_svg: str, layers_svg: str, maps_file: str, print_output: bool = False):
-        ''' Combine aligned score SVG with visualization layers from TurnLayersIntoSVG '''
-        try:
-            ''' Parse both SVG files '''
-            aligned_tree = ET.parse(aligned_svg)
-            aligned_root = aligned_tree.getroot()
-            
-            layers_tree = ET.parse(layers_svg)
-            layers_root = layers_tree.getroot()
-            
-            ''' Define SVG namespace '''
-            svg_ns = 'http://www.w3.org/2000/svg'
-            ns = {'svg': svg_ns}
-            
-            ''' Find the Layers group at the root level (sibling of timeAxis) '''
-            layers_group = aligned_root.find(".//svg:g[@class='Layers']", ns)
-            if layers_group is None:
-                ''' Try without namespace prefix '''
-                layers_group = aligned_root.find(".//g[@class='Layers']")
-            if layers_group is None:
-                print("✗ Could not find <g class='Layers'> at root level")
-                return False
-            
-            ''' Extract all layer groups from the layers SVG '''
-            layer_groups = layers_root.findall(".//svg:g", ns)
-            
-            if len(layer_groups) > 0:
-                ''' Add layer groups to the Layers group '''
-                for layer_group in layer_groups:
-                    ''' Deep copy the layer group to avoid modifying the original tree '''
-                    layer_copy = ET.fromstring(ET.tostring(layer_group))
-                    layers_group.append(layer_copy)
-                if print_output==True:
-                    print(f"✓ Added {len(layer_groups)} layer groups to the Layers group")
-            else:
-                print("⚠ Warning: No layer groups found in layers SVG")
-            
-            ''' Save the combined SVG to output folder '''
-            root_dir = Path(__file__).parent.parent.parent
-            output_dir = root_dir / "output"
-            output_dir.mkdir(parents=True, exist_ok=True)
-            output_path = str(output_dir / filename)
-            
-            aligned_tree.write(output_path, encoding='UTF-8', xml_declaration=True)
-            
-            if print_output:
-                print(f"✓ Combined SVG created: {output_path}")
-            return True
-            
-        except Exception as e:
-            print(f"✗ Error combining SVG files: {e}")
-            return False
