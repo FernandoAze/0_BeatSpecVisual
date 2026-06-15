@@ -105,7 +105,9 @@ EndVisualization = Visualizer()
 
 ''' Define the layers to combine with vertical offsets '''
 svg_layers_to_combine = [
-    (str(root_dir / input_parent_dir / "example2 ALL.svg"), 0)
+    (str(root_dir / input_parent_dir / "example2 ALL.svg"), 0),
+    (str(root_dir / input_parent_dir / "example1 ALL.svg"), 200)
+
 ]
 
 ''' Create the final composite SVG '''
@@ -114,7 +116,7 @@ EndVisualization.create_final_SVG(
                                     height             =svg_Layer_Height*3,
                                     background_color   = "#ffefcf",
                                     svg_layers         = svg_layers_to_combine,
-                                    output_file        = "FINAL.svg",
+                                    output_file        = "FINAL_example2.svg",
                                     print_output       = True)
 
 

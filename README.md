@@ -1,76 +1,82 @@
-# MIRVisualScore
-THIS README IS STILL ON THE WORKS
+# BeatSpecVisual
 
-## Description
+A modular Python system for beat detection, score alignment, and synchronized visualization of music performances with their corresponding sheet music.
 
-MIRVisualScore is a modular system for beat detection and visualization. The codebase is organized for clarity and extensibility, with core logic, visualization layers, and utilities separated into logical modules.
+## Overview
 
----
+BeatSpecVisual combines audio analysis, beat tracking, and score warping into a composable visualization framework. The project uses a **layer-based architecture** where all visualization components inherit from a base `Layer` class, enabling flexible and extensible visualizations.
 
 ## Requirements
 
-- Python 3.12.3+
+- Python 3.12.3 or higher
 
----
-
-## Setup Instructions
+## Installation
 
 ### 1. Create and Activate Virtual Environment
 
 ```bash
-# Create a virtual environment with Python 3.12.3
+# Create virtual environment
 python3.12 -m venv venv
 
-# Activate the virtual environment
-source venv/bin/activate  # On Linux/macOS
-# or
-venv\Scripts\activate  # On Windows
+# Activate (Linux/macOS)
+source venv/bin/activate
+
+# Activate (Windows)
+venv\Scripts\activate
 ```
 
 ### 2. Install Dependencies
 
 ```bash
-# Upgrade pip
 pip install --upgrade pip
-
-# Install dependencies from requirements.txt
 pip install -r requirements.txt
 ```
----
 
-## How to Run
+## Project Architecture
 
-### Required Files
-	This visualization tool depends on 3 source files these are:
-	- The audio file in .wav format, with the recording that shall be analyzed.
-	- The corresponding warped score in SVG.
-	- The maps.json file that contains the onset times linked to each note ID (file also required by ScoreWarp).
-	- A .npz with the Beat Tracked audio that shall be visualized.
+### Layer-Based System
 
+All visualization components inherit from `visualization_system.Layer` and must implement:
 
-### Getting the audio
-The audio/recording just needs to be in .wav format. 
+- `load_data(**kwargs)` — Load and validate data, return `bool`
+- `draw(ax, shared_data)` — Draw visualization on axis, return `(lines, labels)`
 
-### Getting the MAPSfile
-The Maps is a file that can be created through https://github.com/trompamusic/trompa-align.
+### Core Modules
 
-Weigl, D. (2020). Multimodal Music Information Alignment.  https://trompamusic.eu/deliverables/TR-D3.5-Multimodal_Music_Information_Alignment_v2.pdf (accessed 18 Dec 2024) 
+**[src/functions/visualization_system.py](src/functions/visualization_system.py)**
+- `Layer` — Base class for all visualization components
+- `Visualizer` — Main orchestrator for composing and rendering multiple layers
 
-### Getting the Score
-The score that is needed to run should be obtained Through ScoreWarp. 
+**[src/functions/Beat_Layers.py](src/functions/Beat_Layers.py)**
+- Beat and downbeat detection visualization layers
+- Probability graphs and accurate beat/downbeat timing overlays
 
-### Running Example Files
+**[src/functions/Spectrogram_layer.py](src/functions/Spectrogram_layer.py)**
+- Mel-scale spectrogram visualization of audio
 
-The project includes example scripts in the `examples/` folder.
+**[src/functions/warp_score.py](src/functions/warp_score.py)**
+- Score alignment and warping utilities
+- Score-spectrogram composite visualization creation
 
-```bash
-# Navigate to the examples folder
-cd examples
+**[src/functions/Load_Files.py](src/functions/Load_Files.py)**
+- Data loading utilities for maps, beat data, scores, and audio files
 
-# Run any example script ex:
-python lego_layers.py
+## Data Requirements
 
-```
+To run visualizations, you need:
+
+1. **Audio File** — `.wav` format recording to analyze
+2. **Beat Analysis** — `.npz` file containing beat tracking data
+3. **Score File** — SVG image (warped score from ScoreWarp)
+4. **Maps File** — `.maps.json` containing note onset times and IDs (required for score alignment)
+
+### Obtaining Data Files
+
+- **Maps & Score Alignment** — Use [trompa-align](https://github.com/trompamusic/trompa-align)
+  - Reference: [Weigl, D. (2020). Multimodal Music Information Alignment](https://trompamusic.eu/deliverables/TR-D3.5-Multimodal_Music_Information_Alignment_v2.pdf)
+- **Score Warping** — Use ScoreWarp to generate SVG from MEI/MusicXML files
+  - [Verovio Online Editor](https://editor.verovio.org/) for MEI preview
+  - [MusicXML Converter](https://musicxml.tools/converter) for format conversion
 
 ## Project Structure
 
@@ -78,163 +84,89 @@ python lego_layers.py
 0_BeatSpecVisual/
 ├── README.md
 ├── requirements.txt
+├── agents.md
 ├── src/
 │   └── functions/
 │       ├── __init__.py
-│       ├── BeatThis_layers.py 
-│       ├── Spectogram_layer.py
+│       ├── Beat_Layers.py
+│       ├── Spectrogram_layer.py
 │       ├── visualization_system.py
 │       ├── warp_score.py
-│       └── input_files/
-│           ├── beat_this_analysis/
-│           │   └── beat_probs.npz
-│           └── PARTITURAS_MEI/
-│               ├── Chopin_Op10_3_1.mei
-│               └── Chopin_op10no3_p01-mei.maps.json
+│       └── Load_Files.py
+├── input_files/
+│   ├── beat_this_analysis/
+│   └── BWV856/
+│       ├── beat_Bach.npz
+│       ├── BWV856.mei
+│       ├── bwv856 LouJ01 asap.maps
+│       ├── Performance1/
+│       ├── Performance2/
+│       └── Performance3/
 ├── examples/
-│   ├── lego_layers.py
-│   ├── ouput_svg.py
-│   └── plot_ouput_svg.py
-└── output/
+│   ├── BWV856.py
+│   ├── BWV856_EXAMPLE1.py
+│   ├── BWV856_EXAMPLE2.py
+│   ├── BWV856_COMBINE.py
+│   └── Turn_txt_into_MAPS.py
+├── output/
+└── .gitignore
 ```
----
 
-## Layers and Components Description
-!!!!!!!!!CAPITULO PLACEHOLDER ESCRITO PELO AI TENHO DE REVER ISTO E RESCREVER DE FORMA MAIS PORREIRA
-### visualization_system.py
+## Usage
 
-#### Visualizer
-Assembles multiple visualization layers. Use this as the main entry point to build composite visualizations.
+### Running Examples
 
-**Key methods:**
-- `add_layer(layer)` — Add a layer (e.g., spectrogram, beats, onsets)
-- `load_all_layers(audio_path=..., beat_file=..., maps_file=...)` — Pass your file paths here to load all layers at once
-- `draw()` — Render the visualization
-- `show()` — Display in window
-- `TurnPlotIntoPNG(filename, plot_size=(width, height))` — Save as PNG with exact pixel size
-- `TurnInToSVG(filename)` — Save as high-quality SVG
+Example scripts in the `examples/` folder demonstrate the system:
 
-**Usage example:**
+```bash
+cd examples
+python BWV856_EXAMPLE1.py
+```
+
+### Creating Custom Visualizations
+
 ```python
-viz = Visualizer(figsize=(12, 8))
+from src.functions.visualization_system import Visualizer
+from src.functions.Spectrogram_layer import Spectrogram
+from src.functions.Beat_Layers import BeatProbabilityLayer
+
+# Create visualizer
+viz = Visualizer(figsize=(14, 6))
+
+# Add layers
 viz.add_layer(Spectrogram())
 viz.add_layer(BeatProbabilityLayer())
-viz.load_all_layers(audio_path="audio.wav", beat_file="beat_probs.npz")
+
+# Load data
+viz.load_all_layers(
+    audio_path="path/to/audio.wav",
+    beat_file="path/to/beat_data.npz",
+    maps_file="path/to/score.maps.json"
+)
+
+# Render and save
 viz.draw()
 viz.show()
+viz.TurnPlotIntoPNG("output.png", plot_size=(1920, 1080))
+viz.TurnInToSVG("output.svg")
 ```
 
-#### Layer
-Abstract base class for all visualization components. Inherit from this to create custom layers.
+## Output
 
----
-### BeatThis_layers.py
+Processed visualizations are saved to the `output/` directory, including:
+- PNG exports with custom pixel dimensions
+- SVG exports (vector format for publication quality)
+- Composite score-spectrogram alignments
 
-#### Run_BeatThis (Function)
-Runs beat detection on audio and saves results to .npz file.
+## Development Notes
 
-**Inputs:**
-- `audio_path` — Path to audio file
-- `output_path` — Where to save .npz (default: `src/input_files/beat_this_analysis/beat_probs.npz`)
+- **Comments**: Use `''' '''` (triple quotes) for all comments; avoid `#` comments
+- **Dependencies**: See [requirements.txt](requirements.txt) before adding new packages
+- **File Organization**: Output files should go to `/output`
+- Maintain existing commented-out code segments — do not remove them
 
-**Returns:** Path to saved .npz file
+## Resources
 
-#### BeatProbabilityLayer
-Shows beat detection probability as a line graph.
-
-**Key tuning:**
-- `color` — Line color (default: red)
-
-**Inputs (via load_data):**
-- `beat_file` — Path to .npz from Run_BeatThis()
-
-#### DownbeatProbabilityLayer
-Shows downbeat probability as a line graph.
-
-**Key tuning:**
-- `color` — Line color (default: blue)
-
-**Inputs (via load_data):**
-- `beat_file` — Path to .npz from Run_BeatThis()
-
-
-#### BeatAccurateLayer
-Shows detected beat and downbeat times as vertical lines.
-
-**Key tuning:**
-- `beat_color` — Color for beats (default: red)
-- `downbeat_color` — Color for downbeats (default: blue)
-
-**Inputs (via load_data):**
-- `beat_file` — Path to .npz from Run_BeatThis()
-
----
-### Spectogram_layer.py
-
-#### Spectrogram
-Displays mel-scale spectrogram of audio.
-
-**Key tuning:**
-- `freq_window` — Frequency range in Hz (default: 20-4000)
-- `color_map` — Colormap name (default: "magma")
-
-**Inputs (via load_data):**
-- `audio_path` — Path to audio file
-
----
-
-### warp_score.py
-
-#### Onsets_Layer
-Shows note onset times from score alignment as vertical lines.
-
-**Key tuning:**
-- `onset_color` — Line color (default: yellow)
-
-**Inputs (via load_data):**
-- `maps_file` — Path to .maps.json file from score alignment
-
-#### Warp_Score
-Aligns and warps score with spectrogram PNG. Creates composite visualizations.
-
-**Key methods:**
-- `crop_png(maps_file, png_file, audio_file)` — Crop spectrogram to match score timeline. Saves to `/output/cropped_png.png`
-- `Allign_Score_and_PNG(png_plot, svg_image, maps_json_file)` — Create composite SVG with embedded spectrogram. Saves to `/output/composite.svg`
-- `extract_viewBox_dimensions(svg_file)` — Get SVG dimensions
-- `get_first_and_last_onsets(maps_file)` — Get onset times from maps file
-
-**Inputs:**
-- `maps_file` — Path to .maps.json file from score alignment
-- `png_file` — Path to spectrogram PNG
-- `audio_file` — Path to audio file (for duration info)
-- `svg_image` — Path to score SVG
-
----
-
-## Notes:
-
-BeatThis_layers.py 
-	This script is divided into multiple classes that should just be methods of a "class BeatThis()". 
-	I will correct this in the future.
- 
-
-Folder src/input_files structure also will be changed to have be:
-```bash
-├── src/
-│   └── input_files/
-│           ├── PlotPNG/
-│           │   └── PLOT.png			#store the image that is used as input for .Combine_plotPNG_Score()	
-│           ├── Tracked_Beat/			#instead of "beat_this_analysis/"
-│           │   └── tracked_beat.npz 	#instead of "beat_probs.npz"
-│           └── WarpedScores/ 				#For Storing the warped Scores and MAPS file. 
-│               ├── Chopin_op10no3_p01-mei.maps.json.svg  
-│               └── Chopin_op10no3_p01-mei.maps.json
-	
-```
-###Usefull Stuff
-Link for Verovio Online Editor:
-	https://editor.verovio.org/
-
-Link for converting MXL (musescore forma) into MusicXML: 
-	https://musicxml.tools/converter
+- [Verovio Online Editor](https://editor.verovio.org/) — Visualize and edit MEI files
+- [MusicXML Converter](https://musicxml.tools/converter) — Convert MXL to MusicXML format
 

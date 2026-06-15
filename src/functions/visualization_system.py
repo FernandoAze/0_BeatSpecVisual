@@ -400,56 +400,9 @@ class Visualizer:
         if print_output==True:
                 print(f"✅ PNG saved successfully: {filename} ---> ({width_px}x{height_px}px @ {dpi}dpi)")
         return output_path
-    
-    def add_New_SVG_Root(self, svg_file: str, width, height, background_color: str = '#ffffff', print_output: bool = False):
-        '''
-        Add a new parent SVG root with specified dimensions around existing SVG content.
-        
-        Args:
-            svg_file: Path to the existing SVG file
-            width: Width in pixels for the new root SVG
-            height: Height in pixels for the new root SVG
-            background_color: Color for the background rectangle
-            print_output: Whether to print status messages
-        
-        Returns:
-            tuple: (width, height) of the new root, or False if error
-        '''
-        try:
-            ''' Read the existing SVG file as text '''
-            with open(svg_file, 'r', encoding='UTF-8') as f:
-                svg_content = f.read()
-            
-            ''' Remove XML declaration if present '''
-            if svg_content.startswith('<?xml'):
-                svg_content = svg_content.split('?>', 1)[1].strip()
 
-            ''' Create new root SVG wrapper with specified dimensions '''
-            new_svg = f'''<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg"
-     xmlns:xlink="http://www.w3.org/1999/xlink"
-     width="{width}px"
-     height="{height}px"
-     viewBox="0 0 {width} {height}"
-     transform="translate(0, 0)">
-  <rect x="0" y="0" width="100%" height="100%" fill="{background_color}" />
-{svg_content}
-</svg>'''
-            
-            ''' Write the new SVG back to file '''
-            with open(svg_file, 'w', encoding='UTF-8') as f:
-                f.write(new_svg)
-            
-            if print_output:
-                print(f"✅ New SVG root added: {width}x{height}px to {svg_file}")
-            
-            return width, height
-            
-        except Exception as e:
-            print(f"✗ Error adding new SVG root: {e}")
-            return False
 
-    def combine_AlignedScore_with_Layers(self, filename: str, original_score: str, aligned_svg: str, layers_svg: str, maps_file: str, offset_y: int = 0, print_output: bool = False):
+    def combine_AlignedScore_with_Layers(self, filename: str, original_score: str, aligned_svg: str, layers_svg: str, maps_file: str, print_output: bool = False):
         ''' Combine aligned score SVG with visualization layers from TurnLayersIntoSVG '''
         try:
             ''' Parse both SVG files '''
@@ -600,3 +553,148 @@ class Visualizer:
         if print_output:
             print(f"✓ Composite SVG created: {output_path}")
         return output_path
+
+    def create_final_SVG(self, width: int, height: int, svg_layers: List[Tuple[str, float]], output_file: str, background_color: str = '#ffffff', print_output: bool = False):
+        '''
+        Combine multiple SVG files into a single final SVG with each as a separate nested SVG with y-offsets.
+        Preserves each SVG's coordinate system and root element attributes (including ID).
+        
+        Args:
+            width: Width in pixels for the final SVG
+            height: Height in pixels for the final SVG
+            svg_layers: List of tuples (svg_file_path, y_offset) for each layer to combine
+            output_file: Output SVG filename (saves to /output directory)
+            background_color: Color for the background rectangle
+            print_output: Whether to print status messages
+        
+        Returns:
+            str: Path to output file if successful, False otherwise
+        '''
+        try:
+            ''' Build SVG content by combining nested SVGs with preserved coordinate systems '''
+            visual_groups_markup = []
+            
+            ''' Process each SVG layer '''
+            for visual_index, (svg_path, y_offset) in enumerate(svg_layers):
+                try:
+                    ''' Parse SVG file to extract its properties and content '''
+                    svg_tree = ET.parse(svg_path)
+                    svg_root = svg_tree.getroot()
+                    
+                    ''' Extract SVG root's attributes to preserve the coordinate system '''
+                    root_id = svg_root.get('id', '')
+                    svg_viewBox = svg_root.get('viewBox', '')
+                    svg_width = svg_root.get('width', '')
+                    svg_height = svg_root.get('height', '')
+                    
+                    ''' Build attribute strings '''
+                    id_attr = f' id="{root_id}"' if root_id else ''
+                    viewBox_attr = f' viewBox="{svg_viewBox}"' if svg_viewBox else ''
+                    width_attr = f' width="{svg_width}"' if svg_width else ''
+                    height_attr = f' height="{svg_height}"' if svg_height else ''
+                    
+                    ''' Extract all children from SVG root and convert to string '''
+                    children_markup = []
+                    for child in svg_root:
+                        ''' Serialize each child element as string to preserve it exactly '''
+                        child_str = ET.tostring(child, encoding='unicode')
+                        children_markup.append(child_str)
+                    
+                    inner_content = '\n'.join(children_markup)
+                    
+                    ''' Create nested SVG markup with this layer's content, preserving coordinate system '''
+                    nested_svg = f'''  <svg class="visualization_{visual_index}"{id_attr}{viewBox_attr}{width_attr}{height_attr} x="0" y="{y_offset}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+{inner_content}
+  </svg>'''
+                    
+                    visual_groups_markup.append(nested_svg)
+                    
+                    if print_output:
+                        print(f"✓ Added layer {visual_index}: {Path(svg_path).name} at y_offset={y_offset}" + (f" (id={root_id})" if root_id else ""))
+                    
+                except Exception as e:
+                    print(f"✗ Error processing SVG layer {visual_index} ({svg_path}): {e}")
+                    continue
+            
+            ''' Build final SVG markup '''
+            svg_ns = 'http://www.w3.org/2000/svg'
+            visual_groups_str = '\n'.join(visual_groups_markup)
+            
+            final_svg_markup = f'''<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="{svg_ns}"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="{width}px"
+     height="{height}px"
+     viewBox="0 0 {width} {height}">
+  <rect x="0" y="0" width="100%" height="100%" fill="{background_color}" />
+{visual_groups_str}
+</svg>'''
+            
+            ''' Save to output directory '''
+            root_dir = Path(__file__).parent.parent.parent
+            output_dir = root_dir / "output"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = str(output_dir / output_file)
+            
+            ''' Write the final SVG '''
+            with open(output_path, 'w', encoding='UTF-8') as f:
+                f.write(final_svg_markup)
+            
+            if print_output:
+                print(f"✅ Final SVG created: {output_path} ({width}x{height}px)")
+            
+            return output_path
+            
+        except Exception as e:
+            print(f"✗ Error creating final SVG: {e}")
+            return False
+
+
+# WILL REMOVE THIS!!!!!!!!!!!!!!!!!!
+#     def add_New_SVG_Root(self, svg_file: str, width, height, background_color: str = '#ffffff', print_output: bool = False):
+#         '''
+#         Add a new parent SVG root with specified dimensions around existing SVG content.
+        
+#         Args:
+#             svg_file: Path to the existing SVG file
+#             width: Width in pixels for the new root SVG
+#             height: Height in pixels for the new root SVG
+#             background_color: Color for the background rectangle
+#             print_output: Whether to print status messages
+        
+#         Returns:
+#             tuple: (width, height) of the new root, or False if error
+#         '''
+#         try:
+#             ''' Read the existing SVG file as text '''
+#             with open(svg_file, 'r', encoding='UTF-8') as f:
+#                 svg_content = f.read()
+            
+#             ''' Remove XML declaration if present '''
+#             if svg_content.startswith('<?xml'):
+#                 svg_content = svg_content.split('?>', 1)[1].strip()
+
+#             ''' Create new root SVG wrapper with specified dimensions '''
+#             new_svg = f'''<?xml version="1.0" encoding="UTF-8"?>
+# <svg xmlns="http://www.w3.org/2000/svg"
+#      xmlns:xlink="http://www.w3.org/1999/xlink"
+#      width="{width}px"
+#      height="{height}px"
+#      viewBox="0 0 {width} {height}"
+#      transform="translate(0, 0)">
+#   <rect x="0" y="0" width="100%" height="100%" fill="{background_color}" />
+# {svg_content}
+# </svg>'''
+            
+#             ''' Write the new SVG back to file '''
+#             with open(svg_file, 'w', encoding='UTF-8') as f:
+#                 f.write(new_svg)
+            
+#             if print_output:
+#                 print(f"✅ New SVG root added: {width}x{height}px to {svg_file}")
+            
+#             return width, height
+            
+#         except Exception as e:
+#             print(f"✗ Error adding new SVG root: {e}")
+#             return False
