@@ -329,7 +329,7 @@ class BeatAccurateLayer(BeatLayer):
         return svg_group
 
 
-class beatWindowLayer(BeatLayer):
+class BeatWindowLayer(BeatLayer):
     """Visualizes beat probability windows with gradient transparency.
     
     Shows regions where beat probability exceeds a threshold, with transparency 
@@ -486,7 +486,7 @@ class beatWindowLayer(BeatLayer):
         return svg_group
 
 
-class downbeatWindowLayer(BeatLayer):
+class DownbeatWindowLayer(BeatLayer):
     """Visualizes downbeat probability windows with gradient transparency.
     
     Shows regions where downbeat probability exceeds a threshold, with transparency 

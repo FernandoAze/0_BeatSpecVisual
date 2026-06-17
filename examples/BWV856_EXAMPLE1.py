@@ -26,8 +26,6 @@ from src.functions.Beat_Layers import (
     downbeatWindowLayer
 )
 
-WS = Warp_Score()
-
 audio_file_example1 = str(root_dir / input_parent_dir / "BWV856_AndrasSchiff.wav")
 svg_score_example1 = str(root_dir / input_parent_dir / "SW andras.svg")
 maps_file_example1 = str(root_dir / input_parent_dir / "andras.maps.json")
@@ -49,27 +47,23 @@ viz_spec.load_all_layers(audio_path=audio_file_example1)
 
 print("==================" + "Generate Spectrogram PNG" + "==================")
 
-spec_example1=viz_spec.TurnPlotIntoPNG("example1 SPECTROGRAM.png",
+spec_example1=viz_spec.turn_to_PNG("example1 SPECTROGRAM.png",
                                             svg_warped_score    =svg_score_example1,
                                             dpi                 =300,
                                             print_output        =False)
 
 print("==================" + "Align PNG with Score" + "==================")
 example1=Visualizer()
-example1_aligned = example1.Align_Score_and_PNG(png_plot    = spec_example1,
-                                            svg_score       = svg_score_example1, 
-                                            maps_json_file  = maps_file_example1, 
-                                            print_output    = False)
 
-example1.add_layer(Onsets_Layer(onset_color          =(1, 1, 1), line_Width=0.5))
-example1.add_layer(BeatAccurateLayer(beat_color      =(1, 0, 0),
-                                downbeat_color       =(0, 0, 1)))
+example1.add_layer(Onsets_Layer(onset_color          =(1, 0, 1), line_Width=0.5))
+# example1.add_layer(BeatAccurateLayer(beat_color      =(1, 0, 0),
+#                                 downbeat_color       =(0, 0, 1)))
 example1.add_layer(BeatProbabilityLayer(color        =(1, 0, 0)))
 example1.add_layer(DownbeatProbabilityLayer(color    =(0, 0, 1)))
-example1.add_layer(beatWindowLayer( beat_window       =55, 
+example1.add_layer(BeatWindowLayer( beat_window       =55, 
                                     color             =(1, 0, 0),
                                     alpha_max         =0.8))  
-example1.add_layer(downbeatWindowLayer(
+example1.add_layer(DownbeatWindowLayer(
                               beat_window       =55, 
                               color             =(0, 0, 1),
                               alpha_max         =0.8)) 
@@ -81,17 +75,18 @@ example1.load_all_layers(   audio_path      =audio_file_example1,
 
 fig, ax = example1.draw()
 
-# Layers_SVG = example1.TurnLayersIntoSVG(filename            = str(root_dir / input_parent_dir / "example1 LAYERS.svg"), 
-#                                         svg_warped_score    = svg_score_example1,
-#                                         print_output        = False)
+Layers_SVG = example1.turn_to_SVG(filename            = str(root_dir / input_parent_dir / "example1 LAYERS.svg"), 
+                                        svg_warped_score    = svg_score_example1,
+                                        print_output        = False)
 
-# print("==================" + "Combine Aligned Score with Layers" + "==================")
-# example1.combine_AlignedScore_with_Layers(filename       = str(root_dir / input_parent_dir / "example1 ALL.svg"),
-#                                     original_score  = svg_score_example1, 
-#                                     aligned_svg     = example1_aligned,
-#                                     layers_svg      = str(root_dir / input_parent_dir / "example1 LAYERS.svg"),
-#                                     maps_file       = maps_file_example1,
-#                                     print_output    = False)
+print("==================" + "Combine Aligned Score with Layers" + "==================")
+example1.combine_layers_with_score(filename         = str(root_dir / input_parent_dir / "example1 ALL.svg"),
+                                original_score      = svg_score_example1,
+                                PNG_layer           = spec_example1,
+                                layers_svg          = str(root_dir / input_parent_dir / "example1 LAYERS.svg"),
+                                maps_file           = maps_file_example1,
+                                print_output        = True)
+
 
 
 print("Done!")
