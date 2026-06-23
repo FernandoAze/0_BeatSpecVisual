@@ -57,8 +57,8 @@ print("==================" + "Align PNG with Score" + "==================")
 example2=Visualizer()
 
 example2.add_layer(Onsets_Layer(onset_color          =(1, 1, 1), line_Width=0.5))
-example2.add_layer(BeatAccurateLayer(beat_color      =(1, 0, 0),
-                                downbeat_color       =(0, 0, 1)))
+# example2.add_layer(BeatAccurateLayer(beat_color      =(1, 0, 0),
+#                                 downbeat_color       =(0, 0, 1)))
 example2.add_layer(BeatProbabilityLayer(color        =(1, 0, 0)))
 example2.add_layer(DownbeatProbabilityLayer(color    =(0, 0, 1)))
 example2.add_layer(BeatWindowLayer( beat_window       =55, 
