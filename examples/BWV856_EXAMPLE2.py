@@ -12,18 +12,7 @@ root_dir = script_dir.parent
 sys.path.insert(0, str(root_dir))
 input_parent_dir = str("src/input_files/BWV856")
 
-from src.functions.visualization_system import Visualizer
-from src.functions.warp_score import Onsets_Layer, Warp_Score
-from src.functions.Spectrogram_layer import Spectrogram
-from src.functions.Beat_Layers import (
-    Run_BeatThis,
-    BeatLayer,
-    BeatProbabilityLayer,
-    DownbeatProbabilityLayer,
-    BeatAccurateLayer,
-    BeatWindowLayer,
-    DownbeatWindowLayer
-)
+from src.functions import *
 
 
 audio_file_example2 = str(root_dir / input_parent_dir / "Performance2/BWV856_GlennGould.wav")
@@ -68,6 +57,7 @@ example2.add_layer(DownbeatWindowLayer(
                               beat_window       =55, 
                               color             =(0, 0, 1),
                               alpha_max         =0.8)) 
+example2.add_layer(Spectrogram(**spectrogramConfig))
 
 example2.load_all_layers(   audio_path      =audio_file_example2,
                             maps_file       =maps_file_example2,
@@ -78,21 +68,16 @@ fig, ax = example2.draw()
 
 Layers_SVG = example2.turn_to_SVG(  filename            = str(root_dir / input_parent_dir / "example2 LAYERS.svg"), 
                                     svg_warped_score    = svg_score_example2,
-                                    print_output        = False)
+                                    print_output        = True)
 
 print("==================" + "Combine Aligned Score with Layers" + "==================")
-# example2.combine_AlignedScore_with_Layers(filename       = str(root_dir / input_parent_dir / "example2 ALL.svg"),
-#                                     original_score  = svg_score_example2, 
-#                                     aligned_svg     = example2_aligned,
-#                                     layers_svg      = str(root_dir / input_parent_dir / "example2 LAYERS.svg"),
-#                                     maps_file       = maps_file_example2,
-#                                     print_output    = False)
+
 example2.combine_layers_with_score( filename        = str(root_dir / input_parent_dir / "example2 ALL.svg"),
                                 original_score  = svg_score_example2, 
                                 PNG_layer       = spec_example2,
                                 layers_svg      = str(root_dir / input_parent_dir / "example2 LAYERS.svg"),
                                 maps_file       = maps_file_example2,
-                                print_output    = False)
+                                print_output    = True)
 
 print("Done!")
 

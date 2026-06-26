@@ -12,7 +12,7 @@ root_dir = script_dir.parent
 sys.path.insert(0, str(root_dir))
 input_parent_dir = str("src/input_files/BWV856")
 
-from src.functions.visualization_system import Visualizer
+from src.functions import *
 
 svg_score_example1 = str(root_dir / input_parent_dir / "Performance1/SW andras.svg")
 

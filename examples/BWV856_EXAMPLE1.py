@@ -13,18 +13,7 @@ root_dir = script_dir.parent
 sys.path.insert(0, str(root_dir))
 input_parent_dir = str("src/input_files/BWV856/Performance1")
 
-from src.functions.visualization_system import Visualizer
-from src.functions.warp_score import Onsets_Layer, Warp_Score
-from src.functions.Spectrogram_layer import Spectrogram
-from src.functions.Beat_Layers import (
-    Run_BeatThis,
-    BeatLayer,
-    BeatProbabilityLayer,
-    DownbeatProbabilityLayer,
-    BeatAccurateLayer,
-    beatWindowLayer,
-    downbeatWindowLayer
-)
+from src.functions import *
 
 audio_file_example1 = str(root_dir / input_parent_dir / "BWV856_AndrasSchiff.wav")
 svg_score_example1 = str(root_dir / input_parent_dir / "SW andras.svg")

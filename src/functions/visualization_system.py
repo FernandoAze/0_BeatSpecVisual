@@ -507,7 +507,7 @@ class Visualizer:
             
             if print_output:
                 print(f"✓ Layers group with PNG and layer groups added and saved: {output_path}")
-            return True
+            return output_path
             
         except Exception as e:
             print(f"✗ Error combining PNG and layers with score: {e}")
@@ -532,37 +532,114 @@ class Visualizer:
         try:
             ''' Build SVG content by combining nested SVGs with preserved coordinate systems '''
             visual_groups_markup = []
+
+            '''
+            Try to find a reference timeAxis (x start and timeline width) from any
+            of the provided SVG layers. If found, use it to align SVGs that do
+            not contain the score/timeAxis so their content shares the same
+            horizontal position and length.
+            '''
+            ref_timeAxis_x = None
+            ref_timeline_width = None
+            for svg_path, _ in svg_layers:
+                try:
+                    svg_tree_ref = ET.parse(svg_path)
+                    svg_root_ref = svg_tree_ref.getroot()
+                    ns = {'svg': 'http://www.w3.org/2000/svg'}
+                    time_axis = svg_root_ref.find(".//svg:g[@class='timeAxis']", ns)
+                    if time_axis is None:
+                        time_axis = svg_root_ref.find(".//g[@class='timeAxis']")
+                    if time_axis is not None:
+                        children = list(time_axis)
+                        if len(children) >= 2:
+                            second_element = children[1]
+                            x1_str = second_element.get('x1')
+                            x2_str = second_element.get('x2')
+                            if x1_str is not None and x2_str is not None:
+                                ref_timeAxis_x = float(x1_str)
+                                ref_timeline_width = float(x2_str) - float(x1_str)
+                                break
+                except Exception:
+                    continue
             
-            ''' Process each SVG layer '''
+            ''' Process each visual layer '''
             for visual_index, (svg_path, y_offset) in enumerate(svg_layers):
                 try:
-                    ''' Parse SVG file to extract its properties and content '''
-                    svg_tree = ET.parse(svg_path)
-                    svg_root = svg_tree.getroot()
-                    
-                    ''' Extract SVG root's attributes to preserve the coordinate system '''
-                    root_id = svg_root.get('id', '')
-                    svg_viewBox = svg_root.get('viewBox', '')
-                    svg_width = svg_root.get('width', '')
-                    svg_height = svg_root.get('height', '')
-                    
-                    ''' Build attribute strings '''
-                    id_attr = f' id="{root_id}"' if root_id else ''
-                    viewBox_attr = f' viewBox="{svg_viewBox}"' if svg_viewBox else ''
-                    width_attr = f' width="{svg_width}"' if svg_width else ''
-                    height_attr = f' height="{svg_height}"' if svg_height else ''
-                    
-                    ''' Extract all children from SVG root and convert to string '''
-                    children_markup = []
-                    for child in svg_root:
-                        ''' Serialize each child element as string to preserve it exactly '''
-                        child_str = ET.tostring(child, encoding='unicode')
-                        children_markup.append(child_str)
-                    
-                    inner_content = '\n'.join(children_markup)
-                    
-                    ''' Create nested SVG markup with this layer's content, preserving coordinate system '''
-                    nested_svg = f'''  <svg class="visualization_{visual_index}"{id_attr}{viewBox_attr}{width_attr}{height_attr} x="0" y="{y_offset}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                    visual_path = Path(svg_path)
+                    is_png = visual_path.suffix.lower() == '.png'
+
+                    root_id = ''
+                    id_attr = ''
+                    viewBox_attr = ''
+                    width_attr = ''
+                    height_attr = ''
+                    nested_x = '0'
+                    contains_timeAxis = False
+
+                    if is_png:
+                        ''' Load PNG metadata and embed the image as base64 inside a nested SVG '''
+                        png_img = Image.open(svg_path)
+                        png_width, png_height = png_img.size
+
+                        png_buffer = io.BytesIO()
+                        png_img.save(png_buffer, format='PNG')
+                        png_base64 = base64.b64encode(png_buffer.getvalue()).decode('utf-8')
+
+                        viewBox_attr = f' viewBox="0 0 {png_width} {png_height}"'
+                        width_attr = f' width="{png_width}"'
+                        height_attr = f' height="{png_height}"'
+
+                        ''' PNGs created by turn_to_PNG already have the target layer size '''
+                        inner_content = f'''<image x="0" y="0" width="{png_width}" height="{png_height}" href="data:image/png;base64,{png_base64}" />'''
+
+                        if ref_timeAxis_x is not None:
+                            nested_x = str(int(ref_timeAxis_x))
+                    else:
+                        ''' Parse SVG file to extract its properties and content '''
+                        svg_tree = ET.parse(svg_path)
+                        svg_root = svg_tree.getroot()
+
+                        ''' Extract SVG root's attributes to preserve the coordinate system '''
+                        root_id = svg_root.get('id', '')
+                        svg_viewBox = svg_root.get('viewBox', '')
+                        svg_width = svg_root.get('width', '')
+                        svg_height = svg_root.get('height', '')
+
+                        ''' Build attribute strings '''
+                        id_attr = f' id="{root_id}"' if root_id else ''
+                        viewBox_attr = f' viewBox="{svg_viewBox}"' if svg_viewBox else ''
+                        width_attr = f' width="{svg_width}"' if svg_width else ''
+                        height_attr = f' height="{svg_height}"' if svg_height else ''
+
+                        ''' Extract all children from SVG root and convert to string '''
+                        children_markup = []
+                        for child in svg_root:
+                            ''' Serialize each child element as string to preserve it exactly '''
+                            child_str = ET.tostring(child, encoding='unicode')
+                            children_markup.append(child_str)
+
+                        inner_content = '\n'.join(children_markup)
+
+                        ''' Determine if this SVG contains its own timeAxis (score) '''
+                        ns = {'svg': 'http://www.w3.org/2000/svg'}
+                        try:
+                            ta = svg_root.find(".//svg:g[@class='timeAxis']", ns)
+                            if ta is None:
+                                ta = svg_root.find(".//g[@class='timeAxis']")
+                            contains_timeAxis = ta is not None
+                        except Exception:
+                            contains_timeAxis = False
+
+                        ''' If the nested SVG does not contain the score/timeAxis, position
+                        it using the reference timeAxis x offset so it aligns with other
+                        layers that do include the score. Also ensure it has a width
+                        when missing by using the reference timeline width. '''
+                        if not contains_timeAxis and ref_timeAxis_x is not None:
+                            nested_x = str(int(ref_timeAxis_x))
+                            if not svg_width and ref_timeline_width is not None:
+                                width_attr = f' width="{int(ref_timeline_width)}"'
+
+                    nested_svg = f'''  <svg class="visualization_{visual_index}"{id_attr}{viewBox_attr}{width_attr}{height_attr} x="{nested_x}" y="{y_offset}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 {inner_content}
   </svg>'''
                     
@@ -669,6 +746,7 @@ class Visualizer:
     # except Exception as e:
     #     print(f"✗ Error combining SVG files: {e}")
     #     return False
+    
     # def Align_Score_and_PNG(self, png_plot: str, svg_score: str, maps_json_file: str, print_output: bool = False) -> bool:
     #     ''' Align PNG visualization with score SVG by embedding as base64 and positioning at timeAxis '''
         
