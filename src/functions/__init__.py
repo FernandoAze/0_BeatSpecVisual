@@ -10,8 +10,8 @@ from .visualization_system import Layer, Visualizer
 ''' Score warping and onset layers '''
 from .warp_score import Onsets_Layer, Warp_Score
 
-''' Spectrogram layer '''
-from .Spectrogram_layer import Spectrogram
+''' Spectrogram, Chromagram and Waveform layers '''
+from .Audio_Layers import Spectrogram, Chromagram, Waveform
 
 ''' Beat analysis layers and utilities '''
 from .Beat_Layers import (
@@ -30,6 +30,8 @@ __all__ = [
     'Onsets_Layer',
     'Warp_Score',
     'Spectrogram',
+    'Chromagram',
+    'Waveform',
     'Run_BeatThis',
     'BeatLayer',
     'BeatProbabilityLayer',

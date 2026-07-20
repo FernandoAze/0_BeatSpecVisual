@@ -76,7 +76,5 @@ example1.combine_layers_with_score(filename         = str(root_dir / input_paren
                                 maps_file           = maps_file_example1,
                                 print_output        = True)
 
-
-
 print("Done!")
 

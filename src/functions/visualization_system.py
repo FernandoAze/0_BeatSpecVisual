@@ -401,8 +401,8 @@ class Visualizer:
                 print(f"✅ PNG saved successfully: {filename} ---> ({width_px}x{height_px}px @ {dpi}dpi)")
         return output_path
         
-    def combine_layers_with_score(self, filename: str, original_score: str, PNG_layer: str, layers_svg: str, maps_file: str, print_output: bool = False):
-        ''' Combine PNG and layers SVG with score SVG by creating Layers group with scaled PNG and layer groups '''
+    def combine_layers_with_score(self, filename: str, original_score: str, layers_svg: str, maps_file: str, PNG_layer: Optional[str] = None, show_score: bool = True, print_output: bool = False):
+        ''' Combine PNG (optional) and layers SVG with score SVG by creating Layers group with scaled PNG and layer groups '''
         try:
             ''' Get timeAxis bounds to size the PNG and Layers group properly '''
             from .warp_score import Warp_Score
@@ -413,17 +413,6 @@ class Visualizer:
                 return False
             
             timeAxis_first_x, timeAxis_last_x, timeline_width = timeAxis_bounds
-            
-            ''' Load PNG and get dimensions '''
-            png_img = Image.open(PNG_layer)
-            png_width, png_height = png_img.size
-            
-            ''' Target height for the PNG display '''
-            target_png_height = 110
-            
-            ''' Calculate scale factors '''
-            scale_x = timeline_width / png_width
-            scale_y = target_png_height / png_height
 
             ''' Parse original score SVG '''
             svg_tree = ET.parse(original_score)
@@ -433,10 +422,10 @@ class Visualizer:
             svg_ns = 'http://www.w3.org/2000/svg'
             ET.register_namespace('', svg_ns)
 
-            ''' Embed PNG as base64 '''
-            png_buffer = io.BytesIO()
-            png_img.save(png_buffer, format='PNG')
-            png_base64 = base64.b64encode(png_buffer.getvalue()).decode('utf-8')
+            ''' Hide all existing score children when show_score is False '''
+            if not show_score:
+                for child in list(composite_svg):
+                    child.set('display', 'none')
 
             ns = {'svg': 'http://www.w3.org/2000/svg'}
             
@@ -451,25 +440,35 @@ class Visualizer:
             if len(layer_groups) == 0:
                 layer_groups = layers_root.findall("./g")
             
-            ''' Create new Layers group positioned at timeAxis (like Align_Score_and_PNG does) '''
+            ''' Create new Layers group positioned at timeAxis '''
             layers_group = ET.Element('g', {
                 'class': 'Layers',
                 'transform': f'translate({timeAxis_first_x}, 0)',
                 'width': str(timeline_width),
-                'height': str(int(png_height * scale_y))
             })
-            
-            ''' Create PNG image element with scaled dimensions '''
-            png_image_elem = ET.Element('image', {
-                'x': '0',
-                'y': '0',
-                # 'width': str(timeline_width),
-                # 'height': str(int(png_height * scale_y)),
-                'href': f'data:image/png;base64,{png_base64}'
-            })
-            
-            ''' Add PNG image element to new Layers group '''
-            layers_group.append(png_image_elem)
+
+            ''' Optionally embed PNG as base64 and add to Layers group '''
+            if PNG_layer is not None:
+                png_img = Image.open(PNG_layer)
+                png_width, png_height = png_img.size
+
+                target_png_height = 110
+                scale_y = target_png_height / png_height
+
+                layers_group.set('height', str(int(png_height * scale_y)))
+
+                png_buffer = io.BytesIO()
+                png_img.save(png_buffer, format='PNG')
+                png_base64 = base64.b64encode(png_buffer.getvalue()).decode('utf-8')
+
+                png_image_elem = ET.Element('image', {
+                    'x': '0',
+                    'y': '0',
+                    # 'width': str(timeline_width),
+                    # 'height': str(int(png_height * scale_y)),
+                    'href': f'data:image/png;base64,{png_base64}'
+                })
+                layers_group.append(png_image_elem)
             
             ''' Add layer groups from layers SVG to the new Layers group '''
             if len(layer_groups) > 0:
