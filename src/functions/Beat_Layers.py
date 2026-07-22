@@ -255,10 +255,11 @@ class DownbeatProbabilityLayer(BeatLayer):
 class BeatAccurateLayer(BeatLayer):
     """Visualizes detected beat times as vertical lines."""
     
-    def __init__(self, name: str = "Beat Accurate", beat_color='red', downbeat_color='blue'):
+    def __init__(self, name: str = "Beat Accurate", beat_color='red', downbeat_color='blue', line_Width: float = 1):
         super().__init__(name)
         self.beat_color = beat_color
         self.downbeat_color = downbeat_color
+        self.line_Width = line_Width
     
     def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
         data = self._load_npz_data(beat_file, ['detected_beats', 'detected_downbeats'])
@@ -278,12 +279,12 @@ class BeatAccurateLayer(BeatLayer):
         downbeat_set = set(np.round(self._data["detected_downbeats"], 6))
         
         ''' Draw regular beats (exclude downbeats) '''
-        beat_lines = [ax2.axvline(x=t, color=self.beat_color, linewidth=1) 
+        beat_lines = [ax2.axvline(x=t, color=self.beat_color, linewidth=self.line_Width) 
                      for t in self._data["detected_beats"]
                      if round(t, 6) not in downbeat_set]
         
         ''' Draw downbeats '''
-        downbeat_lines = [ax2.axvline(x=t, color=self.downbeat_color, linewidth=1) 
+        downbeat_lines = [ax2.axvline(x=t, color=self.downbeat_color, linewidth=self.line_Width) 
                          for t in self._data["detected_downbeats"]]
         
         labels = []
@@ -314,13 +315,13 @@ class BeatAccurateLayer(BeatLayer):
         for t in beat_times:
             if round(t, 6) not in downbeat_set:
                 x = self._time_to_pixel_x(t, ctx)
-                lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{beat_color_hex}" stroke-width="1"/>')
+                lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{beat_color_hex}" stroke-width="{self.line_Width}"/>')
         
         ''' Draw downbeats '''
         downbeat_color_hex = self._rgb_to_hex(self.downbeat_color)
         for t in downbeat_times:
             x = self._time_to_pixel_x(t, ctx)
-            lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{downbeat_color_hex}" stroke-width="1"/>')
+            lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{downbeat_color_hex}" stroke-width="{self.line_Width}"/>')
         
         svg_group = f'''  <g id="{self.name}" class="layer beat-accurate">
 {chr(10).join(lines)}
