@@ -36,7 +36,7 @@ data_layer.add_layer(BeatAccurateLayer())
 data_layer.add_layer(Onsets_Layer(onset_color=(0, 0, 0), line_width=0.5))
 data_layer.load_all_layers(audio_path=audio_file, maps_file=maps_file, beat_file=beat_file)
 fig, ax = data_layer.draw()
-Data_Layer=data_layer.turn_to_SVG( filename=str(tmp_dir/"Data_Layer.svg"),svg_warped_score=svg_score)
+Data_Layer=data_layer.turn_to_SVG(filename=str(tmp_dir/"Data_Layer.svg"),svg_warped_score=svg_score)
 
 Layer_Width = data_layer.get_SVG_Root_Dimensions(svg_score)[0]
 Layer_Height = data_layer.get_SVG_Root_Dimensions(svg_score)[1]
