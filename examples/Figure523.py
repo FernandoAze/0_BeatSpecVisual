@@ -21,6 +21,9 @@ import tempfile
 tmp = tempfile.TemporaryDirectory()
 tmp_dir = Path(tmp.name)
 
+#Creation of layers starts here. By default, Beat and Downbeat representations are set to Red and Blue respectively. 
+#These may be altered by passing parameters to layer constructors (e.g., .add_layer(BeatAccurateLayer(beat_color=..., downbeat_color=...))..
+
 #Layer 1: shows output of the BT algorithm, in this case BeatThis output
 data_layer_1 = Visualizer()
 data_layer_1.add_layer(BeatAccurateLayer(line_Width=0.7))

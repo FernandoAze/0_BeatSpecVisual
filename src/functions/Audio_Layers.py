@@ -7,6 +7,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from typing import Dict, Any, List, Tuple, Optional
+import io
+import base64
+from PIL import Image as PILImage
 
 # Import Layer base class
 from .visualization_system import Layer
@@ -92,6 +95,78 @@ class Spectrogram(Layer):
         # ========================================================
 
         return [], []
+
+    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
+        '''Render spectrogram as full-size PNG then overlay axis labels as SVG elements directly on the image'''
+        if self._data is None:
+            return None
+        try:
+            ctx = shared_data.get("svg_context")
+            if ctx is None:
+                return None
+
+            width_px  = int(round(ctx["width_px"]))
+            height_px = int(round(ctx["height_px"]))
+            x_min     = ctx["x_min"]
+            x_max     = ctx["x_max"]
+            show_axes = ctx.get("show_axes", False)
+
+            ''' Bypass matplotlib entirely: normalize → colormap → PIL → PNG bytes '''
+            S_db  = self._data["S_db"]
+            S_min, S_max = S_db.min(), S_db.max()
+            S_norm  = (S_db - S_min) / (S_max - S_min) if S_max > S_min else np.zeros_like(S_db)
+            rgba    = plt.get_cmap(self.color_map)(S_norm)   # (n_mels, n_frames, 4)
+            rgba    = rgba[::-1, :, :]                        # flip: origin='lower'
+            img     = PILImage.fromarray((rgba * 255).astype(np.uint8), "RGBA")
+            img     = img.resize((width_px, height_px), PILImage.LANCZOS)
+
+            buf = io.BytesIO()
+            img.save(buf, format="png")
+            b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+
+            ''' Image fills the full SVG area — no margins, no whitespace '''
+            parts = [f'  <g id="{self.name}" class="layer spectrogram">']
+            parts.append(f'    <image x="0" y="0" width="{width_px}" height="{height_px}" href="data:image/png;base64,{b64}" preserveAspectRatio="none"/>')
+
+            if show_axes:
+                f_min = self._data["freqs"][0]
+                f_max = self._data["freqs"][-1]
+                N_y = 6
+                N_x = 24
+
+                ''' Y axis line along left edge '''
+                parts.append(f'    <line x1="1" y1="0" x2="1" y2="{height_px}" stroke="#111" stroke-width="1"/>')
+                ''' X axis line along bottom edge '''
+                parts.append(f'    <line x1="0" y1="{height_px - 1}" x2="{width_px}" y2="{height_px - 1}" stroke="#111" stroke-width="1"/>')
+
+                ''' Y ticks + labels overlaid on left side of image '''
+                for i in range(N_y):
+                    f = f_min + (f_max - f_min) * i / (N_y - 1)
+                    y_s = height_px - (f - f_min) / (f_max - f_min) * height_px
+                    label = str(int(f))
+                    lw = len(label) * 6 + 4
+                    parts.append(f'    <rect x="2" y="{y_s - 7:.1f}" width="{lw}" height="10" fill="white" opacity="0.75" rx="1"/>')
+                    parts.append(f'    <text x="{lw:.1f}" y="{y_s + 2:.1f}" text-anchor="end" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
+                    parts.append(f'    <line x1="0" y1="{y_s:.1f}" x2="3" y2="{y_s:.1f}" stroke="#111" stroke-width="1"/>')
+
+
+                ''' X ticks + labels overlaid on bottom strip of image '''
+                for i in range(N_x):
+                    t = x_min + (x_max - x_min) * i / (N_x - 1)
+                    x_s = (t - x_min) / (x_max - x_min) * width_px
+                    label = f"{t:.1f}s"
+                    lw = len(label) * 5 + 4
+                    lx = max(1, min(x_s - lw / 2, width_px - lw - 1))
+                    parts.append(f'    <line x1="{x_s:.1f}" y1="{height_px - 1}" x2="{x_s:.1f}" y2="{height_px - 6}" stroke="#111" stroke-width="1"/>')
+                    parts.append(f'    <rect x="{lx:.1f}" y="{height_px - 22:.1f}" width="{lw}" height="10" fill="white" opacity="0.75" rx="1"/>')
+                    parts.append(f'    <text x="{x_s:.1f}" y="{height_px - 13:.1f}" text-anchor="middle" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
+
+            parts.append("  </g>")
+            return "\n".join(parts)
+
+        except Exception as e:
+            print(f"✗ Error converting Spectrogram to SVG: {e}")
+            return None
 
 
 class Chromagram(Layer):
@@ -250,7 +325,7 @@ class Waveform(Layer):
         ax.set_xlabel("Time (s)")
         ax.set_ylabel("Amplitude")
         ax.set_title(f"Waveform: {self._data['filename']}")
-        ax.set_ylim(-1.05, 1.05)
+        ax.set_ylim(-1.0, 1.0)
 
         shared_data.update(self._data)
         # PAINT WAVEFORM
@@ -259,7 +334,7 @@ class Waveform(Layer):
         return [line], ["Waveform"]
 
     def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
-        '''Convert waveform to SVG polyline, downsampled to ~4 points per pixel'''
+        '''Convert waveform to SVG polyline, downsampled to ~4 points per pixel, with optional axes'''
         if self._data is None or "svg_context" not in shared_data:
             return None
 
@@ -274,6 +349,7 @@ class Waveform(Layer):
         x_min, x_max = ctx["x_min"], ctx["x_max"]
         y_min, y_max = ctx["y_min"], ctx["y_max"]
         width_px, height_px = ctx["width_px"], ctx["height_px"]
+        show_axes = ctx.get("show_axes", False)
 
         if x_max == x_min or y_max == y_min:
             return None
@@ -304,6 +380,40 @@ class Waveform(Layer):
 
         opacity_attr = f' opacity="{self.alpha}"' if self.alpha < 1.0 else ''
 
-        return f'''  <g id="{self.name}" class="layer waveform">
-    <polyline points="{points_str}" stroke="{color_hex}" stroke-width="0.4" fill="none"{opacity_attr}/>
-  </g>'''
+        parts = [f'  <g id="{self.name}" class="layer waveform">']
+        parts.append(f'    <polyline points="{points_str}" stroke="{color_hex}" stroke-width="0.4" fill="none"{opacity_attr}/>')
+
+        if show_axes:
+            N_y = 5
+            N_x = 24
+
+            ''' Y axis line along left edge '''
+            parts.append(f'    <line x1="1" y1="0" x2="1" y2="{height_px}" stroke="#111" stroke-width="1"/>')
+            ''' X axis line along bottom edge '''
+            parts.append(f'    <line x1="0" y1="{height_px - 1}" x2="{width_px}" y2="{height_px - 1}" stroke="#111" stroke-width="1"/>')
+
+            ''' Zero amplitude dashed reference line '''
+            if y_min < 0 < y_max:
+                y_zero = (1.0 - (0 - y_min) / (y_max - y_min)) * height_px
+                parts.append(f'    <line x1="0" y1="{y_zero:.1f}" x2="{width_px}" y2="{y_zero:.1f}" stroke="#999" stroke-width="0.5" stroke-dasharray="4,3"/>')
+
+            ''' Y ticks and labels '''
+            for i in range(N_y):
+                amp = y_min + (y_max - y_min) * i / (N_y - 1)
+                y_s = (1.0 - (amp - y_min) / (y_max - y_min)) * height_px
+                label = f"{amp:.1f}"
+                parts.append(f'    <line x1="0" y1="{y_s:.1f}" x2="4" y2="{y_s:.1f}" stroke="#111" stroke-width="1"/>')
+                parts.append(f'    <text x="5" y="{y_s + 3:.1f}" text-anchor="start" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
+
+            ''' X ticks and labels overlaid on bottom strip '''
+            for i in range(N_x):
+                t = x_min + (x_max - x_min) * i / (N_x - 1)
+                x_s = (t - x_min) / (x_max - x_min) * width_px
+                label = f"{t:.1f}s"
+                lw = len(label) * 5 + 4
+                lx = max(1, min(x_s - lw / 2, width_px - lw - 1))
+                parts.append(f'    <line x1="{x_s:.1f}" y1="{height_px - 1}" x2="{x_s:.1f}" y2="{height_px - 6}" stroke="#111" stroke-width="1"/>')
+                parts.append(f'    <text x="{x_s:.1f}" y="{height_px - 13:.1f}" text-anchor="middle" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
+
+        parts.append('  </g>')
+        return '\n'.join(parts)
