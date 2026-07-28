@@ -28,27 +28,25 @@ spectrogramConfig = {
 viz_spec = Visualizer()
 viz_spec.add_layer(Spectrogram(**spectrogramConfig))
 viz_spec.load_all_layers(audio_path=audio_file)
-viz_spec.turn_to_PNG(filename=str(  tmp_dir / "SPECTROGRAM.png"),
-                                    svg_warped_score    =svg_score,
-                                    dpi                 =300)
+fig, ax = viz_spec.draw()
+Spectogram_Layer=viz_spec.turn_to_SVG(filename=str(tmp_dir /"SPECTROGRAM.svg"),svg_warped_score=svg_score, show_axes=True)
 #================================ Beat/Downbeat Layer ===============================
 data_layer = Visualizer()
-data_layer.add_layer(BeatAccurateLayer( beat_color      =(1, 0, 0),
-                                        downbeat_color  =(0, 0, 1)))
-data_layer.add_layer(Onsets_Layer(onset_color=(1, 1, 1), line_Width=0.5))
-data_layer.load_all_layers(audio_path=audio_file, 
-                           maps_file=maps_file, 
-                           beat_file=beat_file)
+data_layer.add_layer(BeatAccurateLayer())
+data_layer.add_layer(Onsets_Layer(onset_color=(0, 0, 0), line_width=0.5))
+data_layer.load_all_layers(audio_path=audio_file, maps_file=maps_file, beat_file=beat_file)
 fig, ax = data_layer.draw()
-data_layer.turn_to_SVG( filename=str(tmp_dir / "Data_Layer.svg"),
-                        svg_warped_score    =svg_score)
+Data_Layer=data_layer.turn_to_SVG( filename=str(tmp_dir/"Data_Layer.svg"),svg_warped_score=svg_score)
+
+Layer_Width = data_layer.get_SVG_Root_Dimensions(svg_score)[0]
+Layer_Height = data_layer.get_SVG_Root_Dimensions(svg_score)[1]
+
+svg_layers_to_stack = [
+    (Spectogram_Layer, 5),
+    (Data_Layer, 5),
+
+    (svg_score, Layer_Height + (2*5)),
+    (Data_Layer, Layer_Height + (2*5))]
 
 EndVisualization = Visualizer()
-EndVisualization.combine_layers_with_score(
-                                    filename         = str(output_dir / "FIG522.svg"),
-                                    original_score   = svg_score,
-                                    PNG_layer        = str(tmp_dir / "SPECTROGRAM.png"),
-                                    layers_svg       = str(tmp_dir / "Data_Layer.svg"),
-                                    maps_file        = maps_file,
-                                    show_score       = True,
-                                    print_output     = True)
+EndVisualization.create_final_SVG(width=Layer_Width,height=2*(Layer_Height+10), svg_layers=svg_layers_to_stack, background_color="#ffefcf", output_file=str(output_dir/"FIG522.svg"), print_output=True)

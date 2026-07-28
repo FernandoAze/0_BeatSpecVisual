@@ -44,7 +44,7 @@ spec_example1=viz_spec.turn_to_PNG("example1 SPECTROGRAM.png",
 print("==================" + "Align PNG with Score" + "==================")
 example1=Visualizer()
 
-example1.add_layer(Onsets_Layer(onset_color          =(1, 0, 1), line_Width=0.5))
+example1.add_layer(Onsets_Layer(onset_color          =(1, 0, 1), line_width=0.5))
 # example1.add_layer(BeatAccurateLayer(beat_color      =(1, 0, 0),
 #                                 downbeat_color       =(0, 0, 1)))
 example1.add_layer(BeatProbabilityLayer(color        =(1, 0, 0)))

@@ -55,7 +55,7 @@ with tempfile.TemporaryDirectory() as tmp:
                                     print_output     =False)
 
     panelA_layers = Visualizer()
-    panelA_layers.add_layer(Onsets_Layer(onset_color=(1, 1, 0), line_Width=0.5))
+    panelA_layers.add_layer(Onsets_Layer(onset_color=(1, 1, 0), line_width=0.5))
 
     panelA_layers.load_all_layers(  audio_path   =audio_file,
                                     maps_file    =maps_file,

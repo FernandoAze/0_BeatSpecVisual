@@ -324,7 +324,8 @@ class Visualizer:
      xmlns:xlink="http://www.w3.org/1999/xlink"
      width="{width_px}px"
      height="{height_px}px"
-     viewBox="0 0 {width_px} {height_px}">
+     viewBox="0 0 {width_px} {height_px}"
+     overflow="visible">
   <!-- Beat Spec Visual Layers -->
 {svg_content}
 </svg>'''
@@ -640,7 +641,7 @@ class Visualizer:
                             if not svg_width and ref_timeline_width is not None:
                                 width_attr = f' width="{int(ref_timeline_width)}"'
 
-                    nested_svg = f'''  <svg class="visualization_{visual_index}"{id_attr}{viewBox_attr}{width_attr}{height_attr} x="{nested_x}" y="{y_offset}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                    nested_svg = f'''  <svg class="visualization_{visual_index}"{id_attr}{viewBox_attr}{width_attr}{height_attr} x="{nested_x}" y="{y_offset}" overflow="visible" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 {inner_content}
   </svg>'''
                     

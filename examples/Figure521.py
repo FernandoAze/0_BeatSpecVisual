@@ -21,65 +21,51 @@ tmp = tempfile.TemporaryDirectory()
 tmp_dir = Path(tmp.name)
 #================================ Spectrogram Layer ===============================
 spectrogramConfig = {
-    "freq_window": (20, 2000),
-    "color_map": "pink"
+    "freq_window": (40, 1600),
+    "color_map": "magma"
 }
 viz_spec = Visualizer()
 viz_spec.add_layer(Spectrogram(**spectrogramConfig))
 viz_spec.load_all_layers(audio_path=audio_file)
-viz_spec.turn_to_PNG(filename=str(  tmp_dir / "SPECTROGRAM.png"),
-                                    svg_warped_score    =svg_score,
-                                    dpi                 =300)
+fig, ax = viz_spec.draw()
+Spectogram_PNG=viz_spec.turn_to_SVG(filename=str(tmp_dir / "SPECTROGRAM.svg"), svg_warped_score=svg_score, show_axes=True)
+
 #================================ Chromagram Layer ===============================
 chroma_layer=Visualizer()
-chroma_layer.add_layer(Chromagram(color_map="pink"))
+chroma_layer.add_layer(Chromagram(color_map="magma"))
 chroma_layer.load_all_layers(audio_path=audio_file)
-chroma_layer.turn_to_PNG(filename=str(tmp_dir / "Chroma_Layer.png"),
-                                    svg_warped_score    =svg_score,
-                                    dpi                 =300)
+Chroma_Layer=chroma_layer.turn_to_PNG(filename=str(tmp_dir / "Chroma_Layer.png"), svg_warped_score=svg_score, dpi=300)
 #================================ Waveform Layer ===============================
 waveform_layer=Visualizer()
 waveform_layer.add_layer(Waveform(color=(0, 0, 1), normalize=True))
 waveform_layer.load_all_layers(audio_path=audio_file, maps_file=maps_file)
 fig, ax = waveform_layer.draw()
-waveform_layer.turn_to_SVG( filename=str(tmp_dir/"Waveform_Layer.svg"),
-                            svg_warped_score=svg_score)
-combined_svg = waveform_layer.combine_layers_with_score(
-                                    filename         = str(tmp_dir / "Waveform_Layer_wScore.svg"),
-                                    original_score   = svg_score,
-                                    layers_svg       = str(tmp_dir / "Waveform_Layer.svg"),
-                                    maps_file        = maps_file,
-                                    show_score       = False)
+Waveform_Layer=waveform_layer.turn_to_SVG( filename=str(tmp_dir/"Waveform_Layer.svg"), svg_warped_score=svg_score, show_axes=True)
 #================================ Onset Layer ===============================
 onset_layer = Visualizer()
-onset_layer.add_layer(Onsets_Layer(onset_color=(0, 1, 0), line_Width=1))
+onset_layer.add_layer(Onsets_Layer(onset_color=(0, 1, 0), line_width=0.5))
 onset_layer.load_all_layers(audio_path=audio_file, maps_file=maps_file)
 fig, ax = onset_layer.draw()
-onset_layer.turn_to_SVG(filename=str(tmp_dir / "Onset_Layer.svg"),
-                                    svg_warped_score    =svg_score,
-                                    print_output        =False)
-onset_layer.combine_layers_with_score(filename       = str(tmp_dir / "Onset_Layer_wScore.svg"),
-                                    original_score   = svg_score,
-                                    layers_svg       = str(tmp_dir / "Onset_Layer.svg"),
-                                    maps_file        = maps_file,
-                                    show_score       = False)
+Onset_Layer=onset_layer.turn_to_SVG(filename=str(tmp_dir / "Onset_Layer.svg"), svg_warped_score=svg_score)
 #================================ Combine Layers ===============================
 EndVisualization = Visualizer()
-Layer_Width = onset_layer.get_SVG_Root_Dimensions(str(tmp_dir / "Waveform_Layer_wScore.svg"))[0]
-Layer_Height = onset_layer.get_SVG_Root_Dimensions(str(tmp_dir / "Waveform_Layer_wScore.svg"))[1]
+Layer_Width = onset_layer.get_SVG_Root_Dimensions(svg_score)[0]
+Layer_Height = onset_layer.get_SVG_Root_Dimensions(svg_score)[1]
 svg_layers_to_stack = [
-    #Top Layer with waveform and onsets
-    (str(tmp_dir / "Waveform_Layer_wScore.svg"), 10),
-    (str(tmp_dir / "Onset_Layer.svg"), 10),
-    #Middle Layer with score, spectrogram and onsets
-    (str(tmp_dir / "SPECTROGRAM.png"), Layer_Height + (2*10)),
-    (str(tmp_dir / "Onset_Layer.svg"), Layer_Height + (2*10)),
-    (svg_score, Layer_Height + (2*10)),
-    #Bottom Layer with chromagram and onsets
-    (str(tmp_dir / "Chroma_Layer.png"), Layer_Height*2 + (3*10)),
-    (str(tmp_dir / "Onset_Layer.svg"), Layer_Height*2 + (3*10))]
+    #Top Layer,
+    (Onset_Layer, 5),
+    (Waveform_Layer, 5),
+    
+    (Onset_Layer, Layer_Height + (2*5)),
+    (svg_score, Layer_Height + (2*5)),
+  
+    (Spectogram_PNG, Layer_Height*2 + (3*10)),
+    (Onset_Layer, Layer_Height*2 + (3*10)),
+     
+    (Chroma_Layer, Layer_Height*3 + (5*10)),
+    (Onset_Layer, Layer_Height*3 + (5*10))]
 EndVisualization.create_final_SVG(  width              =Layer_Width,
-                                    height             =Layer_Height*4+(10*4),
+                                    height             =Layer_Height*4+(15*5),
                                     background_color   = "#ffefcf",
                                     svg_layers         = svg_layers_to_stack,
                                     output_file        = str(output_dir / "FIG521.svg"),

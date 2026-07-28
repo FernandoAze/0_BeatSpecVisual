@@ -39,7 +39,7 @@ Spec_Layer=viz_spec.turn_to_PNG("example3 SPECTROGRAM.png",
 print("==================" + "SVG TOP Layer 1" + "==================")
 Layer_1=Visualizer()
 Layer_1.add_layer(Onsets_Layer( onset_color      =(1, 1, 1), 
-                                            line_Width       =0.5))
+                                            line_width       =0.5))
 Layer_1.add_layer(BeatAccurateLayer(beat_color           =(1, 0, 0),
                                                 downbeat_color       =(0, 0, 1)))
 Layer_1.load_all_layers(   

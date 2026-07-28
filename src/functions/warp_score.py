@@ -19,10 +19,10 @@ import re
 from .visualization_system import Layer
 
 class Onsets_Layer(Layer):
-    def __init__(self, name: str = "obs_mean_onsets", onset_color: str = 'yellow', line_Width: float = 0.2):
+    def __init__(self, name: str = "obs_mean_onsets", onset_color: str = 'yellow', line_width: float = 0.2):
         super().__init__(name)
         self.onset_color = onset_color
-        self.line_Width = line_Width
+        self.line_width = line_width
     def load_data(self, maps_file: str = None, **kwargs) -> bool:
         """Load onsets from MAPS JSON file"""
         try:
@@ -62,7 +62,7 @@ class Onsets_Layer(Layer):
 
         for onset in self._data['onset_times']:
             line = ax.axvline(x=onset, color=self.onset_color,
-            linestyle='--', linewidth=self.line_Width, label='Onset')
+            linestyle='--', linewidth=self.line_width, label='Onset')
             lines.append(line)
         
         if lines:
@@ -93,7 +93,7 @@ class Onsets_Layer(Layer):
             else:
                 x = ((onset_time - ctx["x_min"]) / (ctx["x_max"] - ctx["x_min"])) * ctx["width_px"]
             
-            lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{color_hex}" stroke-width="{self.line_Width}" stroke-dasharray="2,2"/>')
+            lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{color_hex}" stroke-width="{self.line_width}" stroke-dasharray="2,2"/>')
         
         svg_group = f'''  <g id="{self.name}" class="layer onsets">
 {chr(10).join(lines)}

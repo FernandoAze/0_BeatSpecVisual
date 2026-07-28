@@ -150,7 +150,7 @@ class BeatLayer(Layer):
         y_normalized = 1 - (prob / 100.0)
         return y_normalized * ctx["height_px"]
     
-    def _probability_to_svg_group(self, shared_data: Dict[str, Any], prob_key: str, svg_class: str, opacity: float = 1.0) -> Optional[str]:
+    def _probability_to_svg_group(self, shared_data: Dict[str, Any], prob_key: str, svg_class: str, opacity: float = 1.0, line_width: float = 0.5) -> Optional[str]:
         '''
         Generic method to convert probability curve to SVG polyline.
         
@@ -182,7 +182,7 @@ class BeatLayer(Layer):
         opacity_attr = f' opacity="{opacity}"' if opacity < 1.0 else ''
         
         svg_group = f'''  <g id="{self.name}" class="layer {svg_class}">
-    <polyline points="{points_str}" stroke="{color_hex}" stroke-width="0.5" fill="none"{opacity_attr}/>
+    <polyline points="{points_str}" stroke="{color_hex}" stroke-width="{line_width}" fill="none"{opacity_attr}/>
   </g>'''
         
         return svg_group
@@ -190,9 +190,10 @@ class BeatLayer(Layer):
 class BeatProbabilityLayer(BeatLayer):
     """Visualizes beat probability outputs from BeatThis! algorithm."""
     
-    def __init__(self, name: str = "Beat Probability", color='r'):
+    def __init__(self, name: str = "Beat Probability", color='r', line_width: float = 0.5):
         super().__init__(name)
         self.color = color
+        self.line_width = line_width
     
     def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
         data = self._load_npz_data(beat_file, ['beat_times', 'beat_probs'])
@@ -212,20 +213,21 @@ class BeatProbabilityLayer(BeatLayer):
         beat_percent = self._normalize_probabilities(self._data["beat_probs"])
         
         line, = ax2.plot(self._data["beat_times"], beat_percent, '-', 
-                        color=self.color, linewidth=0.5, label='Beat Probability')
+                        color=self.color, linewidth=self.line_width, label='Beat Probability')
         return [line], ['Beat Probability']
     
     def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
         '''Convert beat probability curve to SVG polyline'''
-        return self._probability_to_svg_group(shared_data, 'beat_probs', 'beat-probability')
+        return self._probability_to_svg_group(shared_data, 'beat_probs', 'beat-probability', line_width=self.line_width)
 
 
 class DownbeatProbabilityLayer(BeatLayer):
     """Visualizes downbeat probability outputs from BeatThis! algorithm."""
     
-    def __init__(self, name: str = "Downbeat Probability", color='blue'):
+    def __init__(self, name: str = "Downbeat Probability", color='blue', line_width: float = 0.5):
         super().__init__(name)
         self.color = color
+        self.line_width = line_width
     
     def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
         data = self._load_npz_data(beat_file, ['beat_times', 'downbeat_probs'])
@@ -245,21 +247,21 @@ class DownbeatProbabilityLayer(BeatLayer):
         downbeat_percent = self._normalize_probabilities(self._data["downbeat_probs"])
         
         line, = ax2.plot(self._data["beat_times"], downbeat_percent, '-',
-                        color=self.color, linewidth=0.5, label='Downbeat Probability', alpha=0.9)
+                        color=self.color, linewidth=self.line_width, label='Downbeat Probability', alpha=0.9)
         return [line], ['Downbeat Probability']
     
     def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
         '''Convert downbeat probability curve to SVG polyline'''
-        return self._probability_to_svg_group(shared_data, 'downbeat_probs', 'downbeat-probability', opacity=0.9)
+        return self._probability_to_svg_group(shared_data, 'downbeat_probs', 'downbeat-probability', opacity=0.9, line_width=self.line_width)
 
 class BeatAccurateLayer(BeatLayer):
     """Visualizes detected beat times as vertical lines."""
     
-    def __init__(self, name: str = "Beat Accurate", beat_color='red', downbeat_color='blue', line_Width: float = 1):
+    def __init__(self, name: str = "Beat Accurate", beat_color='red', downbeat_color='blue', line_width: float = 1):
         super().__init__(name)
         self.beat_color = beat_color
         self.downbeat_color = downbeat_color
-        self.line_Width = line_Width
+        self.line_width = line_width
     
     def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
         data = self._load_npz_data(beat_file, ['detected_beats', 'detected_downbeats'])
@@ -279,12 +281,12 @@ class BeatAccurateLayer(BeatLayer):
         downbeat_set = set(np.round(self._data["detected_downbeats"], 6))
         
         ''' Draw regular beats (exclude downbeats) '''
-        beat_lines = [ax2.axvline(x=t, color=self.beat_color, linewidth=self.line_Width) 
+        beat_lines = [ax2.axvline(x=t, color=self.beat_color, linewidth=self.line_width) 
                      for t in self._data["detected_beats"]
                      if round(t, 6) not in downbeat_set]
         
         ''' Draw downbeats '''
-        downbeat_lines = [ax2.axvline(x=t, color=self.downbeat_color, linewidth=self.line_Width) 
+        downbeat_lines = [ax2.axvline(x=t, color=self.downbeat_color, linewidth=self.line_width) 
                          for t in self._data["detected_downbeats"]]
         
         labels = []
@@ -315,13 +317,13 @@ class BeatAccurateLayer(BeatLayer):
         for t in beat_times:
             if round(t, 6) not in downbeat_set:
                 x = self._time_to_pixel_x(t, ctx)
-                lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{beat_color_hex}" stroke-width="{self.line_Width}"/>')
+                lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{beat_color_hex}" stroke-width="{self.line_width}"/>')
         
         ''' Draw downbeats '''
         downbeat_color_hex = self._rgb_to_hex(self.downbeat_color)
         for t in downbeat_times:
             x = self._time_to_pixel_x(t, ctx)
-            lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{downbeat_color_hex}" stroke-width="{self.line_Width}"/>')
+            lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{downbeat_color_hex}" stroke-width="{self.line_width}"/>')
         
         svg_group = f'''  <g id="{self.name}" class="layer beat-accurate">
 {chr(10).join(lines)}

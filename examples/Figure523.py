@@ -26,7 +26,7 @@ tmp_dir = Path(tmp.name)
 
 #Layer 1: shows output of the BT algorithm, in this case BeatThis output
 data_layer_1 = Visualizer()
-data_layer_1.add_layer(BeatAccurateLayer(line_Width=0.7))
+data_layer_1.add_layer(BeatAccurateLayer(line_width=0.7))
 data_layer_1.load_all_layers(audio_path=audio_file, beat_file=beat_file)
 fig, ax = data_layer_1.draw()
 AccurateBeat_layer=data_layer_1.turn_to_SVG(str(tmp_dir / "Data_Layer.svg"), svg_score)

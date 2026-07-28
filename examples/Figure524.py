@@ -22,23 +22,22 @@ tmp = tempfile.TemporaryDirectory()
 tmp_dir = Path(tmp.name)
 
 layer = Visualizer()
-layer.add_layer(BeatAccurateLayer(line_Width=0.7))
+layer.add_layer(BeatAccurateLayer(line_width=0.7))
 layer.add_layer(Waveform(color=(1, 0, 1), normalize=True))
 layer.load_all_layers(audio_path=audio_file, beat_file=beat_file)
 fig, ax = layer.draw()
-Waveform_wBeatThis=layer.turn_to_SVG(str(tmp_dir/"Waveform_wBeatThis.svg"), svg_score)
+Waveform_wBeatThis=layer.turn_to_SVG(str(tmp_dir/"Waveform_wBeatThis.svg"), svg_score, show_axes=True)
 
 #EndVisualization: Combines the three layers with the score.
 EndVisualization = Visualizer()
 Layer_Width = EndVisualization.get_SVG_Root_Dimensions(svg_score)[0]
 Layer_Height = EndVisualization.get_SVG_Root_Dimensions(svg_score)[1]
 
-combination_of_layers = [(Waveform_wBeatThis, 10)]
+combination_of_layers = [(Waveform_wBeatThis, 25),(svg_score, Layer_Height + (2*25))]
 
-EndVisualization.create_final_SVG(  
-                                    width            = Layer_Width,
-                                    height           = Layer_Height+10,
+EndVisualization.create_final_SVG(  width            = Layer_Width,
+                                    height           = Layer_Height+50,
                                     svg_layers       = combination_of_layers,
                                     background_color = "#ffefcf",
                                     output_file      = str(output_dir / "FIG524.svg"),
-                                    print_output     = True)
+                                    print_output     = True)  

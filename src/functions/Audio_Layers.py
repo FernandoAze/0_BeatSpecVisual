@@ -91,6 +91,9 @@ class Spectrogram(Layer):
         ax.set_xlabel("Time (s)")
         ax.set_ylabel("Frequency (Hz)")
         ax.set_title(f"Spectrogram: {self._data['filename']}")
+        import matplotlib.ticker as ticker
+        ax.xaxis.set_major_locator(ticker.MultipleLocator(5))
+        ax.xaxis.set_minor_locator(ticker.MultipleLocator(1))
         # PAINT SPECTROGRAM
         # ========================================================
 
@@ -132,34 +135,32 @@ class Spectrogram(Layer):
                 f_min = self._data["freqs"][0]
                 f_max = self._data["freqs"][-1]
                 N_y = 6
-                N_x = 24
 
                 ''' Y axis line along left edge '''
-                parts.append(f'    <line x1="1" y1="0" x2="1" y2="{height_px}" stroke="#111" stroke-width="1"/>')
+                parts.append(f'    <line x1="0" y1="0" x2="0" y2="{height_px}" stroke="#111" stroke-width="1"/>')
                 ''' X axis line along bottom edge '''
-                parts.append(f'    <line x1="0" y1="{height_px - 1}" x2="{width_px}" y2="{height_px - 1}" stroke="#111" stroke-width="1"/>')
+                parts.append(f'    <line x1="0" y1="{height_px}" x2="{width_px}" y2="{height_px}" stroke="#111" stroke-width="1"/>')
 
-                ''' Y ticks + labels overlaid on left side of image '''
+                ''' Y ticks + labels drawn outwards (left of image) '''
                 for i in range(N_y):
                     f = f_min + (f_max - f_min) * i / (N_y - 1)
                     y_s = height_px - (f - f_min) / (f_max - f_min) * height_px
-                    label = str(int(f))
-                    lw = len(label) * 6 + 4
-                    parts.append(f'    <rect x="2" y="{y_s - 7:.1f}" width="{lw}" height="10" fill="white" opacity="0.75" rx="1"/>')
-                    parts.append(f'    <text x="{lw:.1f}" y="{y_s + 2:.1f}" text-anchor="end" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
-                    parts.append(f'    <line x1="0" y1="{y_s:.1f}" x2="3" y2="{y_s:.1f}" stroke="#111" stroke-width="1"/>')
+                    y_offset = -3 if i == 0 else 0
+                    label = f"{int(f)}Hz"
+                    parts.append(f'    <line x1="-4" y1="{y_s:.1f}" x2="0" y2="{y_s:.1f}" stroke="#111" stroke-width="1"/>')
+                    parts.append(f'    <text x="-6" y="{y_s + 2 + y_offset:.1f}" text-anchor="end" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
 
-
-                ''' X ticks + labels overlaid on bottom strip of image '''
-                for i in range(N_x):
-                    t = x_min + (x_max - x_min) * i / (N_x - 1)
+                ''' X ticks: minor every 1s, major (labeled) every 5s '''
+                t_start = int(np.ceil(x_min))
+                t_end = int(np.floor(x_max))
+                for t in range(t_start, t_end + 1):
                     x_s = (t - x_min) / (x_max - x_min) * width_px
-                    label = f"{t:.1f}s"
-                    lw = len(label) * 5 + 4
-                    lx = max(1, min(x_s - lw / 2, width_px - lw - 1))
-                    parts.append(f'    <line x1="{x_s:.1f}" y1="{height_px - 1}" x2="{x_s:.1f}" y2="{height_px - 6}" stroke="#111" stroke-width="1"/>')
-                    parts.append(f'    <rect x="{lx:.1f}" y="{height_px - 22:.1f}" width="{lw}" height="10" fill="white" opacity="0.75" rx="1"/>')
-                    parts.append(f'    <text x="{x_s:.1f}" y="{height_px - 13:.1f}" text-anchor="middle" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
+                    if t % 5 == 0:
+                        parts.append(f'    <line x1="{x_s:.1f}" y1="{height_px}" x2="{x_s:.1f}" y2="{height_px + 6}" stroke="#111" stroke-width="1"/>')
+                        label = f"{t}s"
+                        parts.append(f'    <text x="{x_s:.1f}" y="{height_px + 14:.1f}" text-anchor="middle" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
+                    else:
+                        parts.append(f'    <line x1="{x_s:.1f}" y1="{height_px}" x2="{x_s:.1f}" y2="{height_px + 4}" stroke="#111" stroke-width="0.7"/>')
 
             parts.append("  </g>")
             return "\n".join(parts)
@@ -326,6 +327,9 @@ class Waveform(Layer):
         ax.set_ylabel("Amplitude")
         ax.set_title(f"Waveform: {self._data['filename']}")
         ax.set_ylim(-1.0, 1.0)
+        import matplotlib.ticker as ticker
+        ax.xaxis.set_major_locator(ticker.MultipleLocator(5))
+        ax.xaxis.set_minor_locator(ticker.MultipleLocator(1))
 
         shared_data.update(self._data)
         # PAINT WAVEFORM
@@ -385,35 +389,36 @@ class Waveform(Layer):
 
         if show_axes:
             N_y = 5
-            N_x = 24
 
             ''' Y axis line along left edge '''
-            parts.append(f'    <line x1="1" y1="0" x2="1" y2="{height_px}" stroke="#111" stroke-width="1"/>')
+            parts.append(f'    <line x1="0" y1="0" x2="0" y2="{height_px}" stroke="#111" stroke-width="1"/>')
             ''' X axis line along bottom edge '''
-            parts.append(f'    <line x1="0" y1="{height_px - 1}" x2="{width_px}" y2="{height_px - 1}" stroke="#111" stroke-width="1"/>')
+            parts.append(f'    <line x1="0" y1="{height_px}" x2="{width_px}" y2="{height_px}" stroke="#111" stroke-width="1"/>')
 
             ''' Zero amplitude dashed reference line '''
             if y_min < 0 < y_max:
                 y_zero = (1.0 - (0 - y_min) / (y_max - y_min)) * height_px
                 parts.append(f'    <line x1="0" y1="{y_zero:.1f}" x2="{width_px}" y2="{y_zero:.1f}" stroke="#999" stroke-width="0.5" stroke-dasharray="4,3"/>')
 
-            ''' Y ticks and labels '''
+            ''' Y ticks and labels drawn outwards (left of image) '''
             for i in range(N_y):
                 amp = y_min + (y_max - y_min) * i / (N_y - 1)
                 y_s = (1.0 - (amp - y_min) / (y_max - y_min)) * height_px
                 label = f"{amp:.1f}"
-                parts.append(f'    <line x1="0" y1="{y_s:.1f}" x2="4" y2="{y_s:.1f}" stroke="#111" stroke-width="1"/>')
-                parts.append(f'    <text x="5" y="{y_s + 3:.1f}" text-anchor="start" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
+                parts.append(f'    <line x1="-4" y1="{y_s:.1f}" x2="0" y2="{y_s:.1f}" stroke="#111" stroke-width="1"/>')
+                parts.append(f'    <text x="-6" y="{y_s + 3:.1f}" text-anchor="end" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
 
-            ''' X ticks and labels overlaid on bottom strip '''
-            for i in range(N_x):
-                t = x_min + (x_max - x_min) * i / (N_x - 1)
+            ''' X ticks: minor every 1s, major (labeled) every 5s '''
+            t_start = int(np.ceil(x_min))
+            t_end = int(np.floor(x_max))
+            for t in range(t_start, t_end + 1):
                 x_s = (t - x_min) / (x_max - x_min) * width_px
-                label = f"{t:.1f}s"
-                lw = len(label) * 5 + 4
-                lx = max(1, min(x_s - lw / 2, width_px - lw - 1))
-                parts.append(f'    <line x1="{x_s:.1f}" y1="{height_px - 1}" x2="{x_s:.1f}" y2="{height_px - 6}" stroke="#111" stroke-width="1"/>')
-                parts.append(f'    <text x="{x_s:.1f}" y="{height_px - 13:.1f}" text-anchor="middle" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
+                if t % 5 == 0:
+                    parts.append(f'    <line x1="{x_s:.1f}" y1="{height_px}" x2="{x_s:.1f}" y2="{height_px + 6}" stroke="#111" stroke-width="1"/>')
+                    label = f"{t}s"
+                    parts.append(f'    <text x="{x_s:.1f}" y="{height_px + 14:.1f}" text-anchor="middle" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
+                else:
+                    parts.append(f'    <line x1="{x_s:.1f}" y1="{height_px}" x2="{x_s:.1f}" y2="{height_px + 4}" stroke="#111" stroke-width="0.7"/>')
 
         parts.append('  </g>')
         return '\n'.join(parts)

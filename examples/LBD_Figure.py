@@ -26,57 +26,61 @@ spectrogramConfig = {"freq_window": (100, 1500),"color_map": "summer"}
 viz_spec.add_layer(Spectrogram(**spectrogramConfig))
 viz_spec.load_all_layers(audio_path=audio_file)
 fig, ax = viz_spec.draw()
-viz_spec.turn_to_SVG(filename=str(  tmp_dir / "SPECTROGRAM.svg"),
+Spectogram_Layer=viz_spec.turn_to_SVG(filename=str(  tmp_dir / "SPECTROGRAM.svg"),
                      svg_warped_score =svg_score,
                      show_axes        =True)
 #================================ Chromagram Layer ===============================
 chroma_layer=Visualizer()
 chroma_layer.add_layer(Chromagram(color_map="summer"))
 chroma_layer.load_all_layers(audio_path=audio_file)
-chroma_layer.turn_to_PNG(filename=str(tmp_dir / "Chroma_Layer.png"), svg_warped_score=svg_score, dpi=300)
+Chroma_Layer=chroma_layer.turn_to_PNG(filename=str(tmp_dir / "Chroma_Layer.png"), svg_warped_score=svg_score, dpi=300)
 #================================ Waveform Layer ===============================
 waveform_layer=Visualizer()
-waveform_layer.add_layer(Waveform(color=(0, 1, 0), normalize=True))
-waveform_layer.add_layer(BeatAccurateLayer(line_Width=1.2))
+waveform_layer.add_layer(Waveform(color=(1, 0, 1), normalize=True))
+waveform_layer.add_layer(BeatAccurateLayer(line_width=1.2))
 waveform_layer.load_all_layers(audio_path=audio_file, maps_file=maps_file, beat_file=beat_file)
 fig, ax = waveform_layer.draw()
-waveform_layer.turn_to_SVG(filename=str(tmp_dir/"Waveform_Layer.svg"), svg_warped_score=svg_score, show_axes=True)
+Waveform_Layer=waveform_layer.turn_to_SVG(filename=str(tmp_dir/"Waveform_Layer.svg"), svg_warped_score=svg_score, show_axes=True)
 #================================ Onset Layer ===============================
 onset_layer = Visualizer()
-onset_layer.add_layer(Onsets_Layer(onset_color=(0, 0, 0), line_Width=0.7))
+onset_layer.add_layer(Onsets_Layer(onset_color=(0, 0, 0), line_width=0.5))
 onset_layer.load_all_layers(audio_path=audio_file, maps_file=maps_file)
 fig, ax = onset_layer.draw()
-onset_layer.turn_to_SVG(filename=str(tmp_dir / "Onset_Layer.svg"),
+Onset_Layer=onset_layer.turn_to_SVG(filename=str(tmp_dir / "Onset_Layer.svg"),
                                     svg_warped_score    =svg_score,
                                     print_output        =False)
 #================================ BeatProb Layer ===============================
 beatProbs_layer = Visualizer()
-beatProbs_layer.add_layer(BeatProbabilityLayer())
+beatProbs_layer.add_layer(BeatProbabilityLayer(line_width=1.2))
 beatProbs_layer.load_all_layers(audio_path=audio_file, beat_file=beat_file)
 fig, ax = beatProbs_layer.draw()
 beatProb=beatProbs_layer.turn_to_SVG(filename=str(tmp_dir / "beatProbs_Layer.svg"),svg_warped_score  =svg_score)
 #================================ BeatProb Layer ===============================
 beatProbs_layer = Visualizer()
-beatProbs_layer.add_layer(DownbeatProbabilityLayer())
+beatProbs_layer.add_layer(DownbeatProbabilityLayer(line_width=1.2))
 beatProbs_layer.load_all_layers(audio_path=audio_file, beat_file=beat_file)
 fig, ax = beatProbs_layer.draw()
 downbeatProb=beatProbs_layer.turn_to_SVG(filename=str(tmp_dir/"downbeatProbs_Layer.svg"), svg_warped_score  =svg_score)
 #================================ Combine Layers ===============================
 EndVisualization = Visualizer()
-Layer_Width = onset_layer.get_SVG_Root_Dimensions(str(tmp_dir / "Waveform_Layer.svg"))[0]
-Layer_Height = onset_layer.get_SVG_Root_Dimensions(str(tmp_dir / "Waveform_Layer.svg"))[1]
+Layer_Width = onset_layer.get_SVG_Root_Dimensions(Waveform_Layer)[0]
+Layer_Height = onset_layer.get_SVG_Root_Dimensions(Waveform_Layer)[1]
 svg_layers_to_stack = [
     (svg_score,0),
-    (str(tmp_dir / "SPECTROGRAM.svg"), Layer_Height),
-    (str(tmp_dir / "Onset_Layer.svg"), Layer_Height),
-    (str(tmp_dir / "beatProbs_Layer.svg") , Layer_Height),
-    (str(tmp_dir / "Chroma_Layer.png"), Layer_Height*2),
-    (str(tmp_dir / "Onset_Layer.svg"), Layer_Height*2),
-    (downbeatProb, Layer_Height*2),
-    (str(tmp_dir/"Waveform_Layer.svg"), Layer_Height*3+10)]
+    (Onset_Layer, 0),
+
+    (Spectogram_Layer, Layer_Height-5),
+    (Onset_Layer, Layer_Height-5),
+
+    (Chroma_Layer, Layer_Height*2+10),
+    (Onset_Layer, Layer_Height*2+10),
+    (beatProb, Layer_Height*2+10),
+    (downbeatProb, Layer_Height*2+10),
+
+    (Waveform_Layer, Layer_Height*3+15)]
 EndVisualization.create_final_SVG(  width              =Layer_Width,
-                                    height             =Layer_Height*4+20,
-                                    background_color   = "#ffffff",
+                                    height             =Layer_Height*4+40,
+                                    background_color   = "#ffefb6",
                                     svg_layers         = svg_layers_to_stack,
                                     output_file        = str(output_dir / "LDB_FIG.svg"),
                                     print_output       = True)
