@@ -255,6 +255,81 @@ class Chromagram(Layer):
 
         return [], []
 
+    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
+        '''Render chromagram using matplotlib (same as turn_to_PNG), then embed as base64 PNG in SVG'''
+        if self._data is None:
+            return None
+        try:
+            ctx = shared_data.get("svg_context")
+            if ctx is None:
+                return None
+
+            width_px  = int(round(ctx["width_px"]))
+            height_px = int(round(ctx["height_px"]))
+            x_min     = ctx["x_min"]
+            x_max     = ctx["x_max"]
+            show_axes = ctx.get("show_axes", False)
+            dpi = 150
+
+            ''' Create temporary figure with exact dimensions matching SVG layer size '''
+            figsize_inches = (width_px / dpi, height_px / dpi)
+            fig_temp, ax_temp = plt.subplots(figsize=figsize_inches, dpi=dpi)
+            
+            ''' Use the same draw() method to render chromagram via librosa.display.specshow() '''
+            self.draw(ax_temp, shared_data)
+            
+            ''' Remove axes and margins to match PNG output '''
+            ax_temp.axis('off')
+            ax_temp.set_title('')
+            fig_temp.subplots_adjust(left=0, right=1, top=1, bottom=0)
+            
+            ''' Render to PNG bytes '''
+            buf = io.BytesIO()
+            fig_temp.savefig(buf, format='png', dpi=dpi, pad_inches=0, facecolor='white')
+            plt.close(fig_temp)
+            buf.seek(0)
+            
+            b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+
+            ''' Image fills the full SVG area — no margins, no whitespace '''
+            parts = [f'  <g id="{self.name}" class="layer chromagram">']
+            parts.append(f'    <image x="0" y="0" width="{width_px}" height="{height_px}" href="data:image/png;base64,{b64}" preserveAspectRatio="none"/>')
+
+            if show_axes:
+                pitch_classes = self._data["pitch_classes"]
+                N_y = len(pitch_classes)
+
+                ''' Y axis line along left edge '''
+                parts.append(f'    <line x1="0" y1="0" x2="0" y2="{height_px}" stroke="#111" stroke-width="1"/>')
+                ''' X axis line along bottom edge '''
+                parts.append(f'    <line x1="0" y1="{height_px}" x2="{width_px}" y2="{height_px}" stroke="#111" stroke-width="1"/>')
+
+                ''' Y ticks + labels for pitch classes drawn outwards (left of image) '''
+                for i in range(N_y):
+                    y_s = height_px - (i + 0.5) / N_y * height_px
+                    label = pitch_classes[i]
+                    parts.append(f'    <line x1="-4" y1="{y_s:.1f}" x2="0" y2="{y_s:.1f}" stroke="#111" stroke-width="1"/>')
+                    parts.append(f'    <text x="-6" y="{y_s + 2:.1f}" text-anchor="end" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
+
+                ''' X ticks: minor every 1s, major (labeled) every 5s '''
+                t_start = int(np.ceil(x_min))
+                t_end = int(np.floor(x_max))
+                for t in range(t_start, t_end + 1):
+                    x_s = (t - x_min) / (x_max - x_min) * width_px
+                    if t % 5 == 0:
+                        parts.append(f'    <line x1="{x_s:.1f}" y1="{height_px}" x2="{x_s:.1f}" y2="{height_px + 6}" stroke="#111" stroke-width="1"/>')
+                        label = f"{t}s"
+                        parts.append(f'    <text x="{x_s:.1f}" y="{height_px + 14:.1f}" text-anchor="middle" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
+                    else:
+                        parts.append(f'    <line x1="{x_s:.1f}" y1="{height_px}" x2="{x_s:.1f}" y2="{height_px + 4}" stroke="#111" stroke-width="0.7"/>')
+
+            parts.append("  </g>")
+            return "\n".join(parts)
+
+        except Exception as e:
+            print(f"✗ Error converting Chromagram to SVG: {e}")
+            return None
+
 
 class Waveform(Layer):
     # =========
