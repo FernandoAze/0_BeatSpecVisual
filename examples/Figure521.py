@@ -1,11 +1,9 @@
 import sys
 from pathlib import Path
-import json
 
 # Add parent directory to path so we can import src
 script_dir = Path(__file__).parent
 root_dir = script_dir.parent
-output_dir = root_dir / "output"
 sys.path.insert(0, str(root_dir))
 input_parent_dir = str("src/input_files/ClairDeLune/")
 
@@ -15,45 +13,16 @@ audio_file = str(root_dir / input_parent_dir / "DEBUSSY ClairDeLune.wav")
 svg_score = str(root_dir / input_parent_dir / "Warped_ClairDeLune.svg")
 maps_file = str(root_dir / input_parent_dir / "ClairDeLune_ONSETS.maps.json")
 
-#tmp_dir: is used to hide intermediate files
-import tempfile
-tmp = tempfile.TemporaryDirectory()
-tmp_dir = Path(tmp.name)
-#================================ Spectrogram Layer ===============================
-spectrogramConfig = {
-    "freq_window": (40, 1600),
-    "color_map": "magma"
-}
-viz_spec = Visualizer()
-viz_spec.add_layer(Spectrogram(**spectrogramConfig))
-viz_spec.add_layer(Onsets_Layer(onset_color=(0, 1, 0), line_width=0.5))
-viz_spec.load_all_layers(audio_path=audio_file, maps_file=maps_file)
-fig, ax = viz_spec.draw()
-Spectogram_PNG=viz_spec.turn_to_SVG(filename=str(tmp_dir / "SPECTROGRAM.svg"), svg_warped_score=svg_score, show_axes=True)
-#================================ Chromagram Layer ===============================
-chroma_layer=Visualizer()
-chroma_layer.add_layer(Chromagram(color_map="magma"))
-chroma_layer.load_all_layers(audio_path=audio_file, maps_file=maps_file)
-Chroma_Layer=chroma_layer.turn_to_PNG(filename=str(tmp_dir / "Chroma_Layer.png"), svg_warped_score=svg_score, dpi=300)
-#================================ Waveform Layer ===============================
-waveform_layer=Visualizer()
-waveform_layer.add_layer(Waveform(color=(0, 1, 0), normalize=True))
-waveform_layer.add_layer(Onsets_Layer(onset_color=(0, 1, 0), line_width=0.5))
-waveform_layer.load_all_layers(audio_path=audio_file, maps_file=maps_file)
-fig, ax = waveform_layer.draw()
-Waveform_Layer=waveform_layer.turn_to_SVG( filename=str(tmp_dir/"Waveform_Layer.svg"), svg_warped_score=svg_score, show_axes=True)
-#================================ Combine Layers ===============================
-EndVisualization = Visualizer()
-Layer_Width = waveform_layer.get_SVG_Root_Dimensions(svg_score)[0]
-Layer_Height = waveform_layer.get_SVG_Root_Dimensions(svg_score)[1]
-svg_layers_to_stack = [
-    (Waveform_Layer, 5),
-    (svg_score, Layer_Height + (2*5)),
-    (Spectogram_PNG, Layer_Height*2 + (3*10)),
-    (Chroma_Layer, Layer_Height*3 + (5*10))]
-EndVisualization.create_final_SVG(  width              =Layer_Width,
-                                    height             =Layer_Height*4+(15*5),
-                                    background_color   = "#ffffff",
-                                    svg_layers         = svg_layers_to_stack,
-                                    output_file        = str(output_dir / "FIG521.svg"),
-                                    print_output       = True)
+fig = Visualizer(audio=audio_file, score=svg_score, maps=maps_file)
+
+fig.add_panel(Waveform(color=(1, 0, 1), normalize=True),
+              Onsets_Layer(onset_color=(0, 1, 0), line_width=0.5))
+
+fig.add_panel(Spectrogram(freq_window=(40, 1600), color_map="magma"),
+              Onsets_Layer(onset_color=(0, 1, 0), line_width=0.5))
+
+fig.add_panel(Chromagram(color_map="magma"))
+
+''' score_position=1 keeps the waveform above the score and the spectrogram/chromagram
+below it, matching the original hand-stacked layout '''
+fig.compose("FIG521.svg", score_position=1, print_output=True)

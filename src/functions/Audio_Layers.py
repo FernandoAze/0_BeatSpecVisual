@@ -11,19 +11,19 @@ import io
 import base64
 from PIL import Image as PILImage
 
-# Import Layer base class
+# Import Layer base class and shape primitives
 from .visualization_system import Layer
+from .shapes import Field, Curve
 
-class Spectrogram(Layer):
+class Spectrogram(Field):
     # =========
     # INITIALIZATION AND CONFIGURATION
     def __init__(self, name: str = "Spectrogram", 
                  freq_window: Tuple[int, int] = (20, 4000),
                  color_map: str = "magma"):
-        super().__init__(name)
+        super().__init__(name, color_map=color_map, svg_class="spectrogram")
 
         self.freq_window = freq_window
-        self.color_map = color_map
     # =========
 
     def load_data(self, audio_path: str, print_output: bool = False, **kwargs) -> bool:
@@ -96,85 +96,31 @@ class Spectrogram(Layer):
 
         return [], []
 
-    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
-        '''Render spectrogram as full-size PNG then overlay axis labels as SVG elements directly on the image'''
+    def _get_matrix(self, shared_data: Dict[str, Any]) -> Optional[np.ndarray]:
         if self._data is None:
             return None
-        try:
-            ctx = shared_data.get("svg_context")
-            if ctx is None:
-                return None
+        return self._data["S_db"]
 
-            width_px  = int(round(ctx["width_px"]))
-            height_px = int(round(ctx["height_px"]))
-            x_min     = ctx["x_min"]
-            x_max     = ctx["x_max"]
-            show_axes = ctx.get("show_axes", False)
-
-            ''' Bypass matplotlib entirely: normalize → colormap → PIL → PNG bytes '''
-            S_db  = self._data["S_db"]
-            S_min, S_max = S_db.min(), S_db.max()
-            S_norm  = (S_db - S_min) / (S_max - S_min) if S_max > S_min else np.zeros_like(S_db)
-            rgba    = plt.get_cmap(self.color_map)(S_norm)   # (n_mels, n_frames, 4)
-            rgba    = rgba[::-1, :, :]                        # flip: origin='lower'
-            img     = PILImage.fromarray((rgba * 255).astype(np.uint8), "RGBA")
-            img     = img.resize((width_px, height_px), PILImage.LANCZOS)
-
-            buf = io.BytesIO()
-            img.save(buf, format="png")
-            b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
-
-            ''' Image fills the full SVG area — no margins, no whitespace '''
-            parts = [f'  <g id="{self.name}" class="layer spectrogram">']
-            parts.append(f'    <image x="0" y="0" width="{width_px}" height="{height_px}" href="data:image/png;base64,{b64}" preserveAspectRatio="none"/>')
-
-            if show_axes:
-                f_min = self._data["freqs"][0]
-                f_max = self._data["freqs"][-1]
-                N_y = 6
-
-                ''' Y axis line along left edge '''
-                parts.append(f'    <line x1="0" y1="0" x2="0" y2="{height_px}" stroke="#111" stroke-width="1"/>')
-                ''' X axis line along bottom edge '''
-                parts.append(f'    <line x1="0" y1="{height_px}" x2="{width_px}" y2="{height_px}" stroke="#111" stroke-width="1"/>')
-
-                ''' Y ticks + labels drawn outwards (left of image) '''
-                for i in range(N_y):
-                    f = f_min + (f_max - f_min) * i / (N_y - 1)
-                    y_s = height_px - (f - f_min) / (f_max - f_min) * height_px
-                    y_offset = -3 if i == 0 else 0
-                    label = f"{int(f)}Hz"
-                    parts.append(f'    <line x1="-4" y1="{y_s:.1f}" x2="0" y2="{y_s:.1f}" stroke="#111" stroke-width="1"/>')
-                    parts.append(f'    <text x="-6" y="{y_s + 2 + y_offset:.1f}" text-anchor="end" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
-
-                ''' X ticks: minor every 1s, major (labeled) every 5s '''
-                t_start = int(np.ceil(x_min))
-                t_end = int(np.floor(x_max))
-                for t in range(t_start, t_end + 1):
-                    x_s = (t - x_min) / (x_max - x_min) * width_px
-                    if t % 5 == 0:
-                        parts.append(f'    <line x1="{x_s:.1f}" y1="{height_px}" x2="{x_s:.1f}" y2="{height_px + 6}" stroke="#111" stroke-width="1"/>')
-                        label = f"{t}s"
-                        parts.append(f'    <text x="{x_s:.1f}" y="{height_px + 14:.1f}" text-anchor="middle" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
-                    else:
-                        parts.append(f'    <line x1="{x_s:.1f}" y1="{height_px}" x2="{x_s:.1f}" y2="{height_px + 4}" stroke="#111" stroke-width="0.7"/>')
-
-            parts.append("  </g>")
-            return "\n".join(parts)
-
-        except Exception as e:
-            print(f"✗ Error converting Spectrogram to SVG: {e}")
-            return None
+    def _y_ticks(self, shared_data: Dict[str, Any]) -> List[Tuple[float, str, float]]:
+        f_min = self._data["freqs"][0]
+        f_max = self._data["freqs"][-1]
+        N_y = 6
+        ticks = []
+        for i in range(N_y):
+            f = f_min + (f_max - f_min) * i / (N_y - 1)
+            frac = i / (N_y - 1)
+            text_dy = -3 if i == 0 else 0
+            ticks.append((frac, f"{int(f)}Hz", text_dy))
+        return ticks
 
 
-class Chromagram(Layer):
+class Chromagram(Field):
     # =========
     # INITIALIZATION AND CONFIGURATION
     def __init__(self, name: str = "Chromagram",
                  color_map: str = "coolwarm",
                  n_chroma: int = 12):
-        super().__init__(name)
-        self.color_map = color_map
+        super().__init__(name, color_map=color_map, resample_filter=PILImage.NEAREST, svg_class="chromagram")
         self.n_chroma = n_chroma
     # =========
 
@@ -255,92 +201,30 @@ class Chromagram(Layer):
 
         return [], []
 
-    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
-        '''Render chromagram using matplotlib (same as turn_to_PNG), then embed as base64 PNG in SVG'''
+    def _get_matrix(self, shared_data: Dict[str, Any]) -> Optional[np.ndarray]:
         if self._data is None:
             return None
-        try:
-            ctx = shared_data.get("svg_context")
-            if ctx is None:
-                return None
+        return self._data["chroma"]
 
-            width_px  = int(round(ctx["width_px"]))
-            height_px = int(round(ctx["height_px"]))
-            x_min     = ctx["x_min"]
-            x_max     = ctx["x_max"]
-            show_axes = ctx.get("show_axes", False)
-            dpi = 150
+    def _normalize(self, matrix: np.ndarray) -> np.ndarray:
+        ''' chroma_cqt values are already in [0, 1]; clip rather than min-max rescale '''
+        return np.clip(matrix, 0, 1)
 
-            ''' Create temporary figure with exact dimensions matching SVG layer size '''
-            figsize_inches = (width_px / dpi, height_px / dpi)
-            fig_temp, ax_temp = plt.subplots(figsize=figsize_inches, dpi=dpi)
-            
-            ''' Use the same draw() method to render chromagram via librosa.display.specshow() '''
-            self.draw(ax_temp, shared_data)
-            
-            ''' Remove axes and margins to match PNG output '''
-            ax_temp.axis('off')
-            ax_temp.set_title('')
-            fig_temp.subplots_adjust(left=0, right=1, top=1, bottom=0)
-            
-            ''' Render to PNG bytes '''
-            buf = io.BytesIO()
-            fig_temp.savefig(buf, format='png', dpi=dpi, pad_inches=0, facecolor='white')
-            plt.close(fig_temp)
-            buf.seek(0)
-            
-            b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
-
-            ''' Image fills the full SVG area — no margins, no whitespace '''
-            parts = [f'  <g id="{self.name}" class="layer chromagram">']
-            parts.append(f'    <image x="0" y="0" width="{width_px}" height="{height_px}" href="data:image/png;base64,{b64}" preserveAspectRatio="none"/>')
-
-            if show_axes:
-                pitch_classes = self._data["pitch_classes"]
-                N_y = len(pitch_classes)
-
-                ''' Y axis line along left edge '''
-                parts.append(f'    <line x1="0" y1="0" x2="0" y2="{height_px}" stroke="#111" stroke-width="1"/>')
-                ''' X axis line along bottom edge '''
-                parts.append(f'    <line x1="0" y1="{height_px}" x2="{width_px}" y2="{height_px}" stroke="#111" stroke-width="1"/>')
-
-                ''' Y ticks + labels for pitch classes drawn outwards (left of image) '''
-                for i in range(N_y):
-                    y_s = height_px - (i + 0.5) / N_y * height_px
-                    label = pitch_classes[i]
-                    parts.append(f'    <line x1="-4" y1="{y_s:.1f}" x2="0" y2="{y_s:.1f}" stroke="#111" stroke-width="1"/>')
-                    parts.append(f'    <text x="-6" y="{y_s + 2:.1f}" text-anchor="end" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
-
-                ''' X ticks: minor every 1s, major (labeled) every 5s '''
-                t_start = int(np.ceil(x_min))
-                t_end = int(np.floor(x_max))
-                for t in range(t_start, t_end + 1):
-                    x_s = (t - x_min) / (x_max - x_min) * width_px
-                    if t % 5 == 0:
-                        parts.append(f'    <line x1="{x_s:.1f}" y1="{height_px}" x2="{x_s:.1f}" y2="{height_px + 6}" stroke="#111" stroke-width="1"/>')
-                        label = f"{t}s"
-                        parts.append(f'    <text x="{x_s:.1f}" y="{height_px + 14:.1f}" text-anchor="middle" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
-                    else:
-                        parts.append(f'    <line x1="{x_s:.1f}" y1="{height_px}" x2="{x_s:.1f}" y2="{height_px + 4}" stroke="#111" stroke-width="0.7"/>')
-
-            parts.append("  </g>")
-            return "\n".join(parts)
-
-        except Exception as e:
-            print(f"✗ Error converting Chromagram to SVG: {e}")
-            return None
+    def _y_ticks(self, shared_data: Dict[str, Any]) -> List[Tuple[float, str, float]]:
+        pitch_classes = self._data["pitch_classes"]
+        N_y = len(pitch_classes)
+        return [((i + 0.5) / N_y, pitch_classes[i], 0.0) for i in range(N_y)]
 
 
-class Waveform(Layer):
+class Waveform(Curve):
     # =========
     # INITIALIZATION AND CONFIGURATION
     def __init__(self, name: str = "Waveform",
                  color: str = "steelblue",
                  alpha: float = 0.8,
                  normalize: bool = False):
-        super().__init__(name)
-        self.color = color
-        self.alpha = alpha
+        super().__init__(name, color=color, line_width=0.4, alpha=alpha,
+                          label="Waveform", decimate_per_pixel=4, svg_class="waveform")
         self.normalize = normalize
     # =========
 
@@ -376,6 +260,19 @@ class Waveform(Layer):
             print(f"✗ Waveform error: {e}")
             return False
 
+    def _amplitude(self) -> np.ndarray:
+        audio = self._data["audio"]
+        if self.normalize:
+            peak = np.max(np.abs(audio))
+            if peak > 0:
+                audio = audio / peak
+        return audio
+
+    def _get_xy(self, shared_data: Dict[str, Any]) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+        if self._data is None:
+            return None
+        return self._data["times"], self._amplitude()
+
     def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:
         # ========================================================
         # PAINT WAVEFORM
@@ -383,20 +280,7 @@ class Waveform(Layer):
             print("✗ Waveform: No data loaded")
             return [], []
 
-        audio = self._data["audio"]
-        if self.normalize:
-            peak = np.max(np.abs(audio))
-            if peak > 0:
-                audio = audio / peak
-
-        line, = ax.plot(
-            self._data["times"],
-            audio,
-            color=self.color,
-            linewidth=0.4,
-            alpha=self.alpha,
-            label="Waveform"
-        )
+        lines, labels = super().draw(ax, shared_data)
 
         ax.set_xlabel("Time (s)")
         ax.set_ylabel("Amplitude")
@@ -410,90 +294,4 @@ class Waveform(Layer):
         # PAINT WAVEFORM
         # ========================================================
 
-        return [line], ["Waveform"]
-
-    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
-        '''Convert waveform to SVG polyline, downsampled to ~4 points per pixel, with optional axes'''
-        if self._data is None or "svg_context" not in shared_data:
-            return None
-
-        ctx = shared_data["svg_context"]
-        times = self._data["times"]
-        audio = self._data["audio"]
-        if self.normalize:
-            peak = np.max(np.abs(audio))
-            if peak > 0:
-                audio = audio / peak
-
-        x_min, x_max = ctx["x_min"], ctx["x_max"]
-        y_min, y_max = ctx["y_min"], ctx["y_max"]
-        width_px, height_px = ctx["width_px"], ctx["height_px"]
-        show_axes = ctx.get("show_axes", False)
-
-        if x_max == x_min or y_max == y_min:
-            return None
-
-        target_points = int(width_px * 4)
-        if len(times) > target_points:
-            indices = np.linspace(0, len(times) - 1, target_points, dtype=int)
-            times = times[indices]
-            audio = audio[indices]
-
-        points = []
-        for t, amp in zip(times, audio):
-            x = ((t - x_min) / (x_max - x_min)) * width_px
-            y = (1.0 - (amp - y_min) / (y_max - y_min)) * height_px
-            points.append(f"{x:.2f},{y:.2f}")
-
-        points_str = " ".join(points)
-
-        if isinstance(self.color, tuple) and len(self.color) >= 3:
-            r, g, b = [int(c * 255) if c <= 1 else int(c) for c in self.color[:3]]
-            color_hex = f'#{r:02x}{g:02x}{b:02x}'
-        else:
-            try:
-                from matplotlib.colors import to_hex
-                color_hex = to_hex(self.color)
-            except Exception:
-                color_hex = '#000000'
-
-        opacity_attr = f' opacity="{self.alpha}"' if self.alpha < 1.0 else ''
-
-        parts = [f'  <g id="{self.name}" class="layer waveform">']
-        parts.append(f'    <polyline points="{points_str}" stroke="{color_hex}" stroke-width="0.4" fill="none"{opacity_attr}/>')
-
-        if show_axes:
-            N_y = 5
-
-            ''' Y axis line along left edge '''
-            parts.append(f'    <line x1="0" y1="0" x2="0" y2="{height_px}" stroke="#111" stroke-width="1"/>')
-            ''' X axis line along bottom edge '''
-            parts.append(f'    <line x1="0" y1="{height_px}" x2="{width_px}" y2="{height_px}" stroke="#111" stroke-width="1"/>')
-
-            ''' Zero amplitude dashed reference line '''
-            if y_min < 0 < y_max:
-                y_zero = (1.0 - (0 - y_min) / (y_max - y_min)) * height_px
-                parts.append(f'    <line x1="0" y1="{y_zero:.1f}" x2="{width_px}" y2="{y_zero:.1f}" stroke="#999" stroke-width="0.5" stroke-dasharray="4,3"/>')
-
-            ''' Y ticks and labels drawn outwards (left of image) '''
-            for i in range(N_y):
-                amp = y_min + (y_max - y_min) * i / (N_y - 1)
-                y_s = (1.0 - (amp - y_min) / (y_max - y_min)) * height_px
-                label = f"{amp:.1f}"
-                parts.append(f'    <line x1="-4" y1="{y_s:.1f}" x2="0" y2="{y_s:.1f}" stroke="#111" stroke-width="1"/>')
-                parts.append(f'    <text x="-6" y="{y_s + 3:.1f}" text-anchor="end" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
-
-            ''' X ticks: minor every 1s, major (labeled) every 5s '''
-            t_start = int(np.ceil(x_min))
-            t_end = int(np.floor(x_max))
-            for t in range(t_start, t_end + 1):
-                x_s = (t - x_min) / (x_max - x_min) * width_px
-                if t % 5 == 0:
-                    parts.append(f'    <line x1="{x_s:.1f}" y1="{height_px}" x2="{x_s:.1f}" y2="{height_px + 6}" stroke="#111" stroke-width="1"/>')
-                    label = f"{t}s"
-                    parts.append(f'    <text x="{x_s:.1f}" y="{height_px + 14:.1f}" text-anchor="middle" font-size="8" font-family="Arial,sans-serif" fill="#111">{label}</text>')
-                else:
-                    parts.append(f'    <line x1="{x_s:.1f}" y1="{height_px}" x2="{x_s:.1f}" y2="{height_px + 4}" stroke="#111" stroke-width="0.7"/>')
-
-        parts.append('  </g>')
-        return '\n'.join(parts)
+        return lines, labels

@@ -10,8 +10,9 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from typing import Dict, Any, List, Tuple, Optional
 
-''' Import Layer base class '''
+''' Import Layer base class and shape primitives '''
 from .visualization_system import Layer
+from .shapes import Curve, Events, Intervals
 """
 Utility class to run BeatThis! beat detection and save results.
 Wraps the run_beat_detection function from beat_this_analysis_gen.py.
@@ -268,358 +269,192 @@ class BeatLayer(Layer):
         parts.append('  </g>')
         return '\n'.join(parts)
 
-class BeatProbabilityLayer(BeatLayer):
+def _load_beat_npz(beat_file: str, required_keys: List[str], layer_name: str) -> Optional[Dict]:
+    ''' Load and validate a BeatThis! .npz file with the required keys '''
+    try:
+        if beat_file is None:
+            return None
+        beat_data = np.load(beat_file, allow_pickle=True)
+        beat_data_dict = {key: value for key, value in beat_data.items()}
+
+        missing = [k for k in required_keys if k not in beat_data_dict]
+        if missing:
+            print(f"✗ {layer_name}: Missing keys {missing}")
+            return None
+        return beat_data_dict
+    except Exception as e:
+        print(f"✗ {layer_name} error: {e}")
+        return None
+
+
+class BeatProbabilityLayer(Curve):
     """Visualizes raw beat logits from the BeatThis! algorithm."""
-    
+
     def __init__(self, name: str = "Beat Probability", color='r', line_width: float = 0.5):
-        super().__init__(name)
-        self.color = color
-        self.line_width = line_width
-    
+        super().__init__(name, color=color, line_width=line_width, label='Beat Logit',
+                          secondary_axis=True, axis_label='Beat activation (logit)',
+                          svg_class='beat-probability')
+
     def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
-        data = self._load_npz_data(beat_file, ['beat_times', 'beat_activation'])
+        data = _load_beat_npz(beat_file, ['beat_times', 'beat_activation'], self.name)
         if data is None:
             return False
         self._data = data
         if print_output==True:
             print(f"✓ {self.name}: Loaded beat data")
         return True
-    
-    def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:
+
+    def _get_xy(self, shared_data: Dict[str, Any]) -> Optional[Tuple[np.ndarray, np.ndarray]]:
         if self._data is None:
-            print(f"✗ {self.name}: No data loaded")
-            return [], []
-        
-        ax2 = self._setup_logit_axis(ax, shared_data, self._data["beat_activation"])
-        
-        line, = ax2.plot(self._data["beat_times"], self._data["beat_activation"], '-', 
-                color=self.color, linewidth=self.line_width, label='Beat Logit')
-        return [line], ['Beat Logit']
-    
-    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
-        '''Convert beat activation curve to SVG polyline'''
-        return self._probability_to_svg_group(shared_data, 'beat_activation', 'beat-probability', line_width=self.line_width)
+            return None
+        return self._data["beat_times"], self._data["beat_activation"]
 
 
-class DownbeatProbabilityLayer(BeatLayer):
+class DownbeatProbabilityLayer(Curve):
     """Visualizes raw downbeat logits from the BeatThis! algorithm."""
-    
+
     def __init__(self, name: str = "Downbeat Probability", color='blue', line_width: float = 0.5):
-        super().__init__(name)
-        self.color = color
-        self.line_width = line_width
-    
+        super().__init__(name, color=color, line_width=line_width, alpha=0.9, label='Downbeat Logit',
+                          secondary_axis=True, axis_label='Beat activation (logit)',
+                          svg_class='downbeat-probability')
+
     def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
-        data = self._load_npz_data(beat_file, ['beat_times', 'downbeat_activation'])
+        data = _load_beat_npz(beat_file, ['beat_times', 'downbeat_activation'], self.name)
         if data is None:
             return False
         self._data = data
         if print_output==True:    
             print(f"✓ {self.name}: Loaded downbeat data")
         return True
-    
-    def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:
-        if self._data is None:
-            print(f"✗ {self.name}: No data loaded")
-            return [], []
-        
-        ax2 = self._setup_logit_axis(ax, shared_data, self._data["downbeat_activation"])
-        
-        line, = ax2.plot(self._data["beat_times"], self._data["downbeat_activation"], '-',
-                color=self.color, linewidth=self.line_width, label='Downbeat Logit', alpha=0.9)
-        return [line], ['Downbeat Logit']
-    
-    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
-        '''Convert downbeat activation curve to SVG polyline'''
-        return self._probability_to_svg_group(shared_data, 'downbeat_activation', 'downbeat-probability', opacity=0.9, line_width=self.line_width)
 
-class BeatAccurateLayer(BeatLayer):
-    """Visualizes detected beat times as vertical lines."""
-    
-    def __init__(self, name: str = "Beat Accurate", beat_color='red', downbeat_color='blue', line_width: float = 1):
-        super().__init__(name)
-        self.beat_color = beat_color
-        self.downbeat_color = downbeat_color
-        self.line_width = line_width
-    
+    def _get_xy(self, shared_data: Dict[str, Any]) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+        if self._data is None:
+            return None
+        return self._data["beat_times"], self._data["downbeat_activation"]
+
+
+class BeatsLayer(Events):
+    """Visualizes detected beat times (excluding downbeats) as vertical markers."""
+
+    def __init__(self, name: str = "Beat", color='red', line_width: float = 1):
+        super().__init__(name, color=color, line_width=line_width, secondary_axis=True, svg_class='beat-marker')
+
     def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
-        data = self._load_npz_data(beat_file, ['detected_beats', 'detected_downbeats'])
+        data = _load_beat_npz(beat_file, ['detected_beats', 'detected_downbeats'], self.name)
         if data is None:
             return False
         self._data = data
-        if print_output==True:  
-            print(f"✓ {self.name}: Loaded {len(self._data['detected_beats'])} beats, {len(self._data['detected_downbeats'])} downbeats")
+        if print_output==True:
+            print(f"✓ {self.name}: Loaded {len(self._data['detected_beats'])} beats")
         return True
-    
-    def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:
+
+    def _get_times(self, shared_data: Dict[str, Any]) -> Optional[np.ndarray]:
         if self._data is None:
-            print(f"✗ {self.name}: No data loaded")
-            return [], []
-        
-        ax2 = self._setup_logit_axis(ax, shared_data, np.array([-1.0, 1.0]))
+            return None
         downbeat_set = set(np.round(self._data["detected_downbeats"], 6))
-        
-        ''' Draw regular beats (exclude downbeats) '''
-        beat_lines = [ax2.axvline(x=t, color=self.beat_color, linewidth=self.line_width) 
-                     for t in self._data["detected_beats"]
-                     if round(t, 6) not in downbeat_set]
-        
-        ''' Draw downbeats '''
-        downbeat_lines = [ax2.axvline(x=t, color=self.downbeat_color, linewidth=self.line_width) 
-                         for t in self._data["detected_downbeats"]]
-        
-        labels = []
-        if beat_lines:
-            labels.append('Beat')
-        if downbeat_lines:
-            labels.append('Downbeat')
-        
-        return beat_lines + downbeat_lines, labels
-    
+        return np.array([t for t in self._data["detected_beats"] if round(t, 6) not in downbeat_set])
+
+
+class DownbeatsLayer(Events):
+    """Visualizes detected downbeat times as vertical markers."""
+
+    def __init__(self, name: str = "Downbeat", color='blue', line_width: float = 1):
+        super().__init__(name, color=color, line_width=line_width, secondary_axis=True, svg_class='downbeat-marker')
+
+    def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
+        data = _load_beat_npz(beat_file, ['detected_beats', 'detected_downbeats'], self.name)
+        if data is None:
+            return False
+        self._data = data
+        if print_output==True:
+            print(f"✓ {self.name}: Loaded {len(self._data['detected_downbeats'])} downbeats")
+        return True
+
+    def _get_times(self, shared_data: Dict[str, Any]) -> Optional[np.ndarray]:
+        if self._data is None:
+            return None
+        return np.array(self._data["detected_downbeats"])
+
+
+class BeatAccurateLayer(Layer):
+    """Legacy combined view of detected beats and downbeats as vertical lines.
+
+    Kept for backward compatibility; new code can use BeatsLayer and
+    DownbeatsLayer directly.
+    """
+
+    def __init__(self, name: str = "Beat Accurate", beat_color='red', downbeat_color='blue', line_width: float = 1):
+        super().__init__(name)
+        self._beats = BeatsLayer(name="Beat", color=beat_color, line_width=line_width)
+        self._downbeats = DownbeatsLayer(name="Downbeat", color=downbeat_color, line_width=line_width)
+
+    def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
+        loaded_beats = self._beats.load_data(beat_file=beat_file, print_output=print_output, **kwargs)
+        loaded_downbeats = self._downbeats.load_data(beat_file=beat_file, print_output=print_output, **kwargs)
+        return loaded_beats and loaded_downbeats
+
+    def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:
+        beat_lines, beat_labels = self._beats.draw(ax, shared_data)
+        downbeat_lines, downbeat_labels = self._downbeats.draw(ax, shared_data)
+        return beat_lines + downbeat_lines, beat_labels + downbeat_labels
+
     def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
-        '''Convert detected beats/downbeats to SVG vertical lines'''
-        if self._data is None or "svg_context" not in shared_data:
+        lines = self._beats._lines_svg(shared_data) + self._downbeats._lines_svg(shared_data)
+        if not lines:
             return None
-        
-        ctx = shared_data["svg_context"]
-        beat_times = self._data.get("detected_beats", [])
-        downbeat_times = self._data.get("detected_downbeats", [])
-        
-        if len(beat_times) == 0 and len(downbeat_times) == 0:
-            return None
-        
-        lines = []
-        downbeat_set = set(np.round(downbeat_times, 6))
-        
-        ''' Draw regular beats '''
-        beat_color_hex = self._rgb_to_hex(self.beat_color)
-        for t in beat_times:
-            if round(t, 6) not in downbeat_set:
-                x = self._time_to_pixel_x(t, ctx)
-                lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{beat_color_hex}" stroke-width="{self.line_width}"/>')
-        
-        ''' Draw downbeats '''
-        downbeat_color_hex = self._rgb_to_hex(self.downbeat_color)
-        for t in downbeat_times:
-            x = self._time_to_pixel_x(t, ctx)
-            lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{downbeat_color_hex}" stroke-width="{self.line_width}"/>')
-        
         svg_group = f'''  <g id="{self.name}" class="layer beat-accurate">
 {chr(10).join(lines)}
   </g>'''
-        
         return svg_group
 
 
-class BeatWindowLayer(BeatLayer):
+class BeatWindowLayer(Intervals):
     """Visualizes beat confidence windows with gradient transparency.
-    
-    Shows regions where beat probability exceeds a threshold, with transparency 
+
+    Shows regions where beat probability exceeds a threshold, with transparency
     gradient: opaque at peak confidence, transparent at threshold boundaries.
     """
-    
+
     def __init__(self, name: str = "Beat Window", beat_window: float = 70, color='red', alpha_max: float = 0.3):
-        """
-        Args:
-            name: Layer name
-            beat_window: Probability threshold (0-100 or 0-1) converted to a logit threshold
-            color: Rectangle fill color
-            alpha_max: Maximum opacity at peak (0-1)
-        """
-        super().__init__(name)
-        self.beat_window = self._normalize_threshold(beat_window)
-        self.logit_threshold = self._probability_threshold_to_logit(self.beat_window)
-        self.color = color
-        self.alpha_max = alpha_max
-    
+        super().__init__(name, color=color, threshold=beat_window, alpha_max=alpha_max, svg_class="beat-window")
+
     def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
-        data = self._load_npz_data(beat_file, ['beat_times', 'beat_activation'])
+        data = _load_beat_npz(beat_file, ['beat_times', 'beat_activation'], self.name)
         if data is None:
             return False
         self._data = data
-        windows = self._find_windows(self._data['beat_activation'])
-        if print_output==True:    
-            print(f"✓ {self.name}: Loaded beat data with threshold {self.beat_window:.1f}%, found {len(windows)} windows")
+        if print_output==True:
+            windows = self._find_windows(self._data['beat_activation'])
+            print(f"✓ {self.name}: Loaded beat data with threshold {self.threshold:.1f}%, found {len(windows)} windows")
         return True
-    
-    def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:
+
+    def _get_activation(self, shared_data: Dict[str, Any]) -> Optional[Tuple[np.ndarray, np.ndarray]]:
         if self._data is None:
-            print(f"✗ {self.name}: No data loaded")
-            return [], []
-        
-        ax2 = self._setup_logit_axis(ax, shared_data, self._data['beat_activation'])
-        beat_times = self._data['beat_times']
-        beat_activation = self._data['beat_activation']
-        windows = self._find_windows(beat_activation)
-        
-        rectangles = []
-        for start_idx, end_idx, peak_prob in windows:
-            t_start = beat_times[start_idx]
-            t_end = beat_times[end_idx]
-            
-            ''' Draw with full opacity in matplotlib '''
-            logit_y_min, logit_y_max = ax2.get_ylim()
-            rect = plt.Rectangle((t_start, logit_y_min), t_end - t_start, logit_y_max - logit_y_min,
-                                alpha=1.0, color=self.color, label='Beat Window')
-            ax2.add_patch(rect)
-            rectangles.append(rect)
-        
-        return rectangles, ['Beat Window'] if rectangles else []
-    
-    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
-        '''Convert beat windows to SVG rectangles with opacity gradient'''
-        if self._data is None or "svg_context" not in shared_data:
             return None
-        
-        ctx = shared_data["svg_context"]
-        beat_times = self._data.get("beat_times", [])
-        beat_activation = self._data.get("beat_activation", [])
-        
-        if len(beat_times) == 0:
-            return None
-        
-        windows = self._find_windows(beat_activation)
-        if len(windows) == 0:
-            return None
-        
-        gradients = []
-        rectangles = []
-        color_hex = self._rgb_to_hex(self.color)
-        
-        for idx, (start_idx, end_idx, peak_prob) in enumerate(windows):
-            t_start = beat_times[start_idx]
-            t_end = beat_times[end_idx]
-            
-            x1 = self._time_to_pixel_x(t_start, ctx)
-            x2 = self._time_to_pixel_x(t_end, ctx)
-            
-            ''' Create unique gradient ID for this window '''
-            gradient_id = f"{self.name.replace(' ', '_')}_gradient_{idx}"
-            
-            ''' Define linear gradient: transparent at edges, opaque at peak '''
-            gradient_svg = f'''    <linearGradient id="{gradient_id}" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:{color_hex};stop-opacity:0"/>
-      <stop offset="50%" style="stop-color:{color_hex};stop-opacity:{self.alpha_max:.2f}"/>
-      <stop offset="100%" style="stop-color:{color_hex};stop-opacity:0"/>
-    </linearGradient>'''
-            gradients.append(gradient_svg)
-            
-            ''' Draw rectangle using gradient '''
-            rect_svg = f'    <rect x="{x1:.2f}" y="0" width="{x2-x1:.2f}" height="{ctx["height_px"]}" fill="url(#{gradient_id})"/>'
-            rectangles.append(rect_svg)
-        
-        svg_group = f'''  <g id="{self.name}" class="layer beat-window">
-    <defs>
-{chr(10).join(gradients)}
-    </defs>
-{chr(10).join(rectangles)}
-  </g>'''
-        
-        return svg_group
+        return self._data['beat_times'], self._data['beat_activation']
 
 
-class DownbeatWindowLayer(BeatLayer):
+class DownbeatWindowLayer(Intervals):
     """Visualizes downbeat confidence windows with gradient transparency.
-    
-    Shows regions where downbeat probability exceeds a threshold, with transparency 
+
+    Shows regions where downbeat probability exceeds a threshold, with transparency
     gradient: opaque at peak confidence, transparent at threshold boundaries.
     """
-    
+
     def __init__(self, name: str = "Downbeat Window", beat_window: float = 70, color='blue', alpha_max: float = 0.3):
-        """
-        Args:
-            name: Layer name
-            beat_window: Probability threshold (0-100 or 0-1) converted to a logit threshold
-            color: Rectangle fill color
-            alpha_max: Maximum opacity at peak (0-1)
-        """
-        super().__init__(name)
-        self.beat_window = self._normalize_threshold(beat_window)
-        self.logit_threshold = self._probability_threshold_to_logit(self.beat_window)
-        self.color = color
-        self.alpha_max = alpha_max
-    
+        super().__init__(name, color=color, threshold=beat_window, alpha_max=alpha_max, svg_class="downbeat-window")
+
     def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
-        data = self._load_npz_data(beat_file, ['beat_times', 'downbeat_activation'])
+        data = _load_beat_npz(beat_file, ['beat_times', 'downbeat_activation'], self.name)
         if data is None:
             return False
         self._data = data
-        windows = self._find_windows(self._data['downbeat_activation'])
         if print_output:
-            print(f"✓ {self.name}: Loaded downbeat data with threshold {self.beat_window:.1f}%, found {len(windows)} windows")
+            windows = self._find_windows(self._data['downbeat_activation'])
+            print(f"✓ {self.name}: Loaded downbeat data with threshold {self.threshold:.1f}%, found {len(windows)} windows")
         return True
-    
-    def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:
+
+    def _get_activation(self, shared_data: Dict[str, Any]) -> Optional[Tuple[np.ndarray, np.ndarray]]:
         if self._data is None:
-            print(f"✗ {self.name}: No data loaded")
-            return [], []
-        
-        ax2 = self._setup_logit_axis(ax, shared_data, self._data['downbeat_activation'])
-        beat_times = self._data['beat_times']
-        downbeat_activation = self._data['downbeat_activation']
-        windows = self._find_windows(downbeat_activation)
-        
-        rectangles = []
-        for start_idx, end_idx, peak_prob in windows:
-            t_start = beat_times[start_idx]
-            t_end = beat_times[end_idx]
-            
-            ''' Draw with full opacity in matplotlib '''
-            logit_y_min, logit_y_max = ax2.get_ylim()
-            rect = plt.Rectangle((t_start, logit_y_min), t_end - t_start, logit_y_max - logit_y_min,
-                                alpha=1.0, color=self.color, label='Downbeat Window')
-            ax2.add_patch(rect)
-            rectangles.append(rect)
-        
-        return rectangles, ['Downbeat Window'] if rectangles else []
-    
-    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
-        '''Convert downbeat windows to SVG rectangles with opacity gradient'''
-        if self._data is None or "svg_context" not in shared_data:
             return None
-        
-        ctx = shared_data["svg_context"]
-        beat_times = self._data.get("beat_times", [])
-        downbeat_activation = self._data.get("downbeat_activation", [])
-        
-        if len(beat_times) == 0:
-            return None
-        
-        windows = self._find_windows(downbeat_activation)
-        if len(windows) == 0:
-            return None
-        
-        gradients = []
-        rectangles = []
-        color_hex = self._rgb_to_hex(self.color)
-        
-        for idx, (start_idx, end_idx, peak_prob) in enumerate(windows):
-            t_start = beat_times[start_idx]
-            t_end = beat_times[end_idx]
-            
-            x1 = self._time_to_pixel_x(t_start, ctx)
-            x2 = self._time_to_pixel_x(t_end, ctx)
-            
-            ''' Create unique gradient ID for this window '''
-            gradient_id = f"{self.name.replace(' ', '_')}_gradient_{idx}"
-            
-            ''' Define linear gradient: transparent at edges, opaque at peak '''
-            gradient_svg = f'''    <linearGradient id="{gradient_id}" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:{color_hex};stop-opacity:0"/>
-      <stop offset="50%" style="stop-color:{color_hex};stop-opacity:{self.alpha_max:.2f}"/>
-      <stop offset="100%" style="stop-color:{color_hex};stop-opacity:0"/>
-    </linearGradient>'''
-            gradients.append(gradient_svg)
-            
-            ''' Draw rectangle using gradient '''
-            rect_svg = f'    <rect x="{x1:.2f}" y="0" width="{x2-x1:.2f}" height="{ctx["height_px"]}" fill="url(#{gradient_id})"/>'
-            rectangles.append(rect_svg)
-        
-        svg_group = f'''  <g id="{self.name}" class="layer downbeat-window">
-    <defs>
-{chr(10).join(gradients)}
-    </defs>
-{chr(10).join(rectangles)}
-  </g>'''
-        
-        return svg_group
+        return self._data['beat_times'], self._data['downbeat_activation']

@@ -16,12 +16,13 @@ import re
 
 
 from .visualization_system import Layer
+from .shapes import Events
 
-class Onsets_Layer(Layer):
+class Onsets_Layer(Events):
     def __init__(self, name: str = "obs_mean_onsets", onset_color: str = 'yellow', line_width: float = 0.2):
-        super().__init__(name)
+        super().__init__(name, color=onset_color, line_width=line_width, dashed=True, svg_class="onsets")
         self.onset_color = onset_color
-        self.line_width = line_width
+
     def load_data(self, maps_file: str = None, **kwargs) -> bool:
         """Load onsets from MAPS JSON file"""
         try:
@@ -51,69 +52,11 @@ class Onsets_Layer(Layer):
         except Exception as e:
             print(f"✗ {self.name} error: {e}")
             return False
-    
-    def draw(self, ax, shared_data) -> Tuple[List, List]:
+
+    def _get_times(self, shared_data: Dict[str, Any]) -> Optional[np.ndarray]:
         if self._data is None:
-            print("✗ Onsets_Layer: No data loaded")
-            return [], []
-        
-        lines = []
-        labels = []
-
-        for onset in self._data['onset_times']:
-            line = ax.axvline(x=onset, color=self.onset_color,
-            linestyle='--', linewidth=self.line_width, label='Onset')
-            lines.append(line)
-        
-        if lines:
-            labels = [self.name]
-        
-        return lines, labels
-    
-    #========================================================
-    # Methods for Layers that are vector based for SVG output
-    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
-        '''Convert onsets to SVG dashed vertical lines'''
-        if self._data is None or "svg_context" not in shared_data:
             return None
-        
-        ctx = shared_data["svg_context"]
-        onset_times = self._data.get("onset_times", [])
-        
-        if len(onset_times) == 0:
-            return None
-        
-        lines = []
-        color_hex = self._rgb_to_hex(self.onset_color)
-        
-        ''' Draw dashed vertical lines for each onset '''
-        for onset_time in onset_times:
-            if ctx["x_max"] == ctx["x_min"]:
-                x = 0
-            else:
-                x = ((onset_time - ctx["x_min"]) / (ctx["x_max"] - ctx["x_min"])) * ctx["width_px"]
-            
-            lines.append(f'    <line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{ctx["height_px"]}" stroke="{color_hex}" stroke-width="{self.line_width}" stroke-dasharray="2,2"/>')
-        
-        svg_group = f'''  <g id="{self.name}" class="layer onsets">
-{chr(10).join(lines)}
-  </g>'''
-        
-        return svg_group
-
-    def _rgb_to_hex(self, rgb):
-        '''Convert RGB tuple (0-1) or matplotlib color to hex'''
-        if isinstance(rgb, tuple) and len(rgb) >= 3:
-            r, g, b = [int(c * 255) if c <= 1 else int(c) for c in rgb[:3]]
-            return f'#{r:02x}{g:02x}{b:02x}'
-        ''' Handle matplotlib color names '''
-        try:
-            from matplotlib.colors import to_hex
-            return to_hex(rgb)
-        except:
-            return '#000000'
-    # Methods for Layers that are vector based for SVG output
-    #========================================================
+        return np.array(self._data['onset_times'])
 
 def TXT_to_Maps(txt_maps_file: str, output_file: str = None, print_output: bool = False) -> list:
     '''

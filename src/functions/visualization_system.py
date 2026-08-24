@@ -17,6 +17,7 @@ import base64
 import io
 from pathlib import Path
 import sys
+import tempfile
 
 # class Layer(ABC), defines the template for all layer subclasses.
 class Layer(ABC): 
@@ -47,7 +48,11 @@ class Layer(ABC):
 class Visualizer:
     def __init__(self, figsize: Optional[Tuple[float, float]] = None, 
                  plot_size_inPxl: Optional[Tuple[int, int]] = None, 
-                 dpi: int = 300):
+                 dpi: int = 300,
+                 audio: Optional[str] = None,
+                 score: Optional[str] = None,
+                 maps: Optional[str] = None,
+                 beats: Optional[str] = None):
         """
         Initialize Visualizer with customizable figure size.
         
@@ -55,14 +60,23 @@ class Visualizer:
             figsize: Figure size as (width, height) in inches. Default (14, 8) if neither figsize nor pixel_size specified.
             pixel_size: Figure size as (width, height) in pixels. Converts to inches using dpi parameter.
             dpi: Dots per inch for pixel-to-inch conversion. Default is 96 (standard screen DPI).
+            audio: Path to the audio file shared by every panel added via add_panel().
+            score: Path to the warped score SVG shared by every panel added via add_panel().
+            maps: Path to the MAPS JSON alignment shared by every panel added via add_panel().
+            beats: Path to the beat/downbeat .npz data shared by every panel added via add_panel().
         """
         self.layers: List[Layer] = []
+        self.panels: List[Dict[str, Any]] = []
         self.shared_data: Dict[str, Any] = {}
         self.fig = None
         self.ax = None
         self.all_lines = []
         self.all_labels = []
         self.dpi = dpi
+        self.audio = audio
+        self.score = score
+        self.maps = maps
+        self.beats = beats
         
         # Convert pixel_size to inches if provided, otherwise use figsize or default
         if plot_size_inPxl is not None:
@@ -75,6 +89,14 @@ class Visualizer:
     def add_layer(self, layer: Layer) -> 'Visualizer':
         self.layers.append(layer)
         # print(f"Added layer: {layer.name}")
+        return self
+    
+    def add_panel(self, *layers: Layer, show_axes: bool = True) -> 'Visualizer':
+        '''
+        Register a panel: a group of layers rendered together on their own axes,
+        stacked as one row of the figure by compose().
+        '''
+        self.panels.append({'layers': list(layers), 'show_axes': show_axes})
         return self
     
     def load_all_layers(self, audio_path: str = None, **kwargs) -> bool:
@@ -572,3 +594,86 @@ class Visualizer:
         except Exception as e:
             print(f"✗ Error creating final SVG: {e}")
             return False
+
+    def compose(self, output_file: str, gap: int = 20, score_trim: int = 25,
+                score_position: int = 0, top_margin: int = 10,
+                background_color: str = '#ffffff', print_output: bool = False):
+        '''
+        Render every panel added via add_panel(), stack them with the warped
+        score using an arithmetic y-offset progression, and combine everything
+        into one final SVG via create_final_SVG().
+
+        Args:
+            output_file: Output SVG filename (saved to /output directory)
+            gap: Vertical gap in pixels between consecutive rows
+            score_trim: Pixels the row after the score is tucked under the
+                score's bottom whitespace (mirrored as bottom padding of the figure)
+            score_position: Row index (0-based) at which the score is inserted
+                among the panels, in the order they were added
+            top_margin: Pixels of padding above the first row, so it isn't
+                clipped flush against the SVG's top edge
+            background_color: Background color for the final SVG
+            print_output: Whether to print status messages
+
+        Returns:
+            str: Path to output file if successful, False otherwise
+        '''
+        if not self.panels:
+            print("✗ Error: No panels added. Call add_panel() first.")
+            return False
+        if self.score is None:
+            print("✗ Error: No score provided. Pass score=... to Visualizer().")
+            return False
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            panel_svgs = []
+
+            for panel_index, panel in enumerate(self.panels):
+                panel_viz = Visualizer()
+                for layer in panel['layers']:
+                    panel_viz.add_layer(layer)
+
+                if not panel_viz.load_all_layers(audio_path=self.audio, maps_file=self.maps, beat_file=self.beats):
+                    print(f"✗ Error: Panel {panel_index} failed to load")
+                    return False
+
+                fig, ax = panel_viz.draw()
+                panel_svg = panel_viz.turn_to_SVG(
+                    filename=str(tmp_path / f"panel_{panel_index}.svg"),
+                    svg_warped_score=self.score,
+                    show_axes=panel['show_axes'],
+                    print_output=print_output,
+                )
+                plt.close(fig)
+
+                if not panel_svg:
+                    print(f"✗ Error: Panel {panel_index} failed to export SVG")
+                    return False
+                panel_svgs.append(panel_svg)
+
+            panel_width, panel_height = self.get_SVG_Root_Dimensions(panel_svgs[0], print_output)
+
+            ''' Insert the score among the rendered panels at score_position '''
+            rows = list(panel_svgs)
+            rows.insert(score_position, self.score)
+
+            ''' y_k = k*(panel_height+gap) - score_trim is the arithmetic progression
+            that reproduces the previously hand-set offsets; the first row starts at
+            top_margin instead of 0 so it isn't clipped against the SVG's top edge. '''
+            svg_layers_to_stack = []
+            y = 0.0
+            for row_index, svg_path in enumerate(rows):
+                y = top_margin if row_index == 0 else top_margin + row_index * (panel_height + gap) - score_trim
+                svg_layers_to_stack.append((svg_path, y))
+
+            total_height = y + panel_height + score_trim
+
+            return self.create_final_SVG(
+                width=panel_width,
+                height=total_height,
+                svg_layers=svg_layers_to_stack,
+                output_file=output_file,
+                background_color=background_color,
+                print_output=print_output,
+            )

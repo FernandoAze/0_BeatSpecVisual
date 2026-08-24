@@ -13,6 +13,9 @@ from .warp_score import Onsets_Layer, Warp_Score
 ''' Spectrogram, Chromagram and Waveform layers '''
 from .Audio_Layers import Spectrogram, Chromagram, Waveform
 
+''' Shape-based rendering primitives '''
+from .shapes import Curve, Events, Intervals, Field
+
 ''' Beat analysis layers and utilities '''
 from .Beat_Layers import (
     Run_BeatThis,
@@ -20,6 +23,8 @@ from .Beat_Layers import (
     BeatProbabilityLayer,
     DownbeatProbabilityLayer,
     BeatAccurateLayer,
+    BeatsLayer,
+    DownbeatsLayer,
     BeatWindowLayer,
     DownbeatWindowLayer
 )
@@ -32,11 +37,17 @@ __all__ = [
     'Spectrogram',
     'Chromagram',
     'Waveform',
+    'Curve',
+    'Events',
+    'Intervals',
+    'Field',
     'Run_BeatThis',
     'BeatLayer',
     'BeatProbabilityLayer',
     'DownbeatProbabilityLayer',
     'BeatAccurateLayer',
+    'BeatsLayer',
+    'DownbeatsLayer',
     'BeatWindowLayer',
     'DownbeatWindowLayer',
 ]
