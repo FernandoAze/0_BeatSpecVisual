@@ -15,7 +15,7 @@ from PIL import Image as PILImage
 from .visualization_system import Layer
 from .shapes import Field, Curve
 
-class Spectrogram(Field):
+class MelSpec(Field):
     # =========
     # INITIALIZATION AND CONFIGURATION
     def __init__(self, name: str = "Spectrogram", 

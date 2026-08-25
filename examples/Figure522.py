@@ -19,8 +19,9 @@ fig = Visualizer(audio=audio_file, score=svg_score, maps=maps_file, beats=beat_f
 ''' simplified from the original script's dual-overlay layout, where the beat/onset
 markers were drawn a second time directly atop the score; compose() stacks distinct
 panels only '''
-fig.add_panel(Spectrogram(freq_window=(20, 2000), color_map="cool"),
-              BeatAccurateLayer(),
-              Onsets_Layer(onset_color=(0, 0, 0), line_width=0.5))
+fig.add_panel(MelSpec(freq_window=(20, 2000), color_map="cool"),
+              BeatsLayer(),
+              DownbeatsLayer(),
+              Onset(onset_color=(0, 0, 0), line_width=0.5))
 
 fig.compose("FIG522.svg", score_position=1, print_output=True)

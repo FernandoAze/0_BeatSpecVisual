@@ -16,10 +16,10 @@ maps_file = str(root_dir / input_parent_dir / "ClairDeLune_ONSETS.maps.json")
 fig = Visualizer(audio=audio_file, score=svg_score, maps=maps_file)
 
 fig.add_panel(Waveform(color=(1, 0, 1), normalize=True),
-              Onsets_Layer(onset_color=(0, 1, 0), line_width=0.5))
+              Onset(onset_color=(0, 1, 0), line_width=0.5))
 
-fig.add_panel(Spectrogram(freq_window=(40, 1600), color_map="magma"),
-              Onsets_Layer(onset_color=(0, 1, 0), line_width=0.5))
+fig.add_panel(MelSpec(freq_window=(40, 1600), color_map="magma"),
+              Onset(onset_color=(0, 1, 0), line_width=0.5))
 
 fig.add_panel(Chromagram(color_map="magma"))
 

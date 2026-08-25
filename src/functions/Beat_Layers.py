@@ -3,8 +3,6 @@ BeatThis! algorithm visualization layers.
 Contains all visualization layers specific to the BeatThis! beat tracking algorithm.
 """
 
-from abc import ABC, abstractmethod
-from matplotlib import lines
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -77,198 +75,6 @@ def Run_BeatThis(audio_path, output_path: str = None, print_output: bool = False
         print(f"✓ File saved: {output_path}")
     return output_path
 
-class BeatLayer(Layer):
-    """Base class for BeatThis! algorithm visualization layers.
-    
-    Manages shared audio/beat data loading and probability visualization.
-    All BeatThis! output layers inherit from this class to share common parameters.
-    """
-    
-    def __init__(self, name: str = "BeatThis Layer"):
-        super().__init__(name)
-    
-    def _load_npz_data(self, beat_file: str, required_keys: List[str]) -> Optional[Dict]:
-        ''' Load and validate .npz file with required keys '''
-        try:
-            if beat_file is None:
-                return None
-            beat_data = np.load(beat_file, allow_pickle=True)
-            beat_data_dict = {key: value for key, value in beat_data.items()}
-            
-            missing = [k for k in required_keys if k not in beat_data_dict]
-            if missing:
-                print(f"✗ {self.name}: Missing keys {missing}")
-                return None
-            return beat_data_dict
-        except Exception as e:
-            print(f"✗ {self.name} error: {e}")
-            return None
-    
-    def _normalize_threshold(self, threshold: float) -> float:
-        '''Convert threshold to 0-100 scale if needed'''
-        return threshold * 100 if threshold <= 1.0 else threshold
-
-    def _probability_threshold_to_logit(self, threshold: float) -> float:
-        '''Convert a percentage threshold to the equivalent raw logit threshold.'''
-        probability = np.clip(threshold / 100, np.finfo(float).eps, 1 - np.finfo(float).eps)
-        return float(np.log(probability / (1 - probability)))
-
-    def _find_windows(self, probs: np.ndarray) -> List[Tuple[int, int, float]]:
-        '''Find contiguous regions where probability exceeds logit_threshold.'''
-        above_threshold = probs >= self.logit_threshold
-
-        windows = []
-        in_window = False
-        window_start = 0
-        window_probs = []
-
-        for i, is_above in enumerate(above_threshold):
-            if is_above:
-                if not in_window:
-                    window_start = i
-                    in_window = True
-                window_probs.append(probs[i])
-            else:
-                if in_window:
-                    peak_prob = np.max(window_probs)
-                    windows.append((window_start, i - 1, peak_prob))
-                    in_window = False
-                    window_probs = []
-
-        if in_window:
-            peak_prob = np.max(window_probs)
-            windows.append((window_start, len(probs) - 1, peak_prob))
-
-        return windows
-
-    def _logit_axis_limits(self, logits: np.ndarray) -> Tuple[float, float]:
-        '''Return symmetric logit limits that include the zero decision boundary.'''
-        max_abs_logit = np.max(np.abs(logits))
-        limit = max(1.0, float(np.ceil(max_abs_logit)))
-        return -limit, limit
-
-    def _setup_logit_axis(self, ax: Axes, shared_data: Dict[str, Any], logits: np.ndarray) -> Axes:
-        '''Get or create the secondary axis used for raw BeatThis logits.'''
-        if "ax2" not in shared_data:
-            ax2 = ax.twinx()
-            shared_data["ax2"] = ax2
-        else:
-            ax2 = shared_data["ax2"]
-        
-        ''' Match the primary axis x-limits to avoid extra whitespace '''
-        if "times" in shared_data:
-            ax2.set_xlim(shared_data["times"][0], shared_data["times"][-1])
-
-        logit_y_min, logit_y_max = self._logit_axis_limits(logits)
-        current_y_min, current_y_max = ax2.get_ylim()
-        ax2.set_ylim(min(current_y_min, logit_y_min), max(current_y_max, logit_y_max))
-        ax2.set_ylabel('Beat activation (logit)', fontweight='bold', fontsize=11)
-        return ax2
-    
-    def _rgb_to_hex(self, rgb):
-        '''Convert RGB tuple (0-1) or matplotlib color to hex'''
-        if isinstance(rgb, tuple) and len(rgb) >= 3:
-            r, g, b = [int(c * 255) if c <= 1 else int(c) for c in rgb[:3]]
-            return f'#{r:02x}{g:02x}{b:02x}'
-        ''' Handle matplotlib color names '''
-        try:
-            from matplotlib.colors import to_hex
-            return to_hex(rgb)
-        except:
-            return '#000000'
-    
-    def _time_to_pixel_x(self, t: float, ctx: Dict) -> float:
-        '''Convert time coordinate to pixel X coordinate'''
-        if ctx["x_max"] == ctx["x_min"]:
-            return 0
-        return ((t - ctx["x_min"]) / (ctx["x_max"] - ctx["x_min"])) * ctx["width_px"]
-    
-    def _logit_to_pixel_y(self, logit: float, ctx: Dict) -> float:
-        '''Convert a logit to an inverted SVG Y coordinate.'''
-        logit_y_min = ctx["logit_y_min"]
-        logit_y_max = ctx["logit_y_max"]
-        if logit_y_max == logit_y_min:
-            return ctx["height_px"] / 2
-        return (1 - (logit - logit_y_min) / (logit_y_max - logit_y_min)) * ctx["height_px"]
-
-    def _logit_axes_to_svg(self, ctx: Dict) -> List[str]:
-        '''Build the shared logit and timeline axes for SVG beat layers.'''
-        if not ctx.get("show_axes", False) or ctx.get("logit_axes_added", False):
-            return []
-
-        width_px = ctx["width_px"]
-        height_px = ctx["height_px"]
-        x_min = ctx["x_min"]
-        x_max = ctx["x_max"]
-        logit_y_min = ctx["logit_y_min"]
-        logit_y_max = ctx["logit_y_max"]
-
-        if x_max == x_min or logit_y_min is None or logit_y_max is None:
-            return []
-
-        ctx["logit_axes_added"] = True
-        parts = [
-            f'    <line x1="0" y1="0" x2="0" y2="{height_px}" stroke="#111" stroke-width="1"/>',
-            f'    <line x1="0" y1="{height_px}" x2="{width_px}" y2="{height_px}" stroke="#111" stroke-width="1"/>',
-        ]
-
-        for logit in np.linspace(logit_y_min, logit_y_max, 5):
-            y = self._logit_to_pixel_y(logit, ctx)
-            parts.append(f'    <line x1="-4" y1="{y:.1f}" x2="0" y2="{y:.1f}" stroke="#111" stroke-width="1"/>')
-            parts.append(f'    <text x="-6" y="{y + 3:.1f}" text-anchor="end" font-size="8" font-family="Arial,sans-serif" fill="#111">{logit:.0f}</text>')
-
-        zero_y = self._logit_to_pixel_y(0, ctx)
-        parts.append(f'    <line x1="0" y1="{zero_y:.1f}" x2="{width_px}" y2="{zero_y:.1f}" stroke="#999" stroke-width="0.5" stroke-dasharray="4,3"/>')
-
-        t_start = int(np.ceil(x_min))
-        t_end = int(np.floor(x_max))
-        for time in range(t_start, t_end + 1):
-            x = self._time_to_pixel_x(time, ctx)
-            if time % 5 == 0:
-                parts.append(f'    <line x1="{x:.1f}" y1="{height_px}" x2="{x:.1f}" y2="{height_px + 6}" stroke="#111" stroke-width="1"/>')
-                parts.append(f'    <text x="{x:.1f}" y="{height_px + 14:.1f}" text-anchor="middle" font-size="8" font-family="Arial,sans-serif" fill="#111">{time}s</text>')
-            else:
-                parts.append(f'    <line x1="{x:.1f}" y1="{height_px}" x2="{x:.1f}" y2="{height_px + 4}" stroke="#111" stroke-width="0.7"/>')
-
-        return parts
-    
-    def _probability_to_svg_group(self, shared_data: Dict[str, Any], prob_key: str, svg_class: str, opacity: float = 1.0, line_width: float = 0.5) -> Optional[str]:
-        '''
-        Generic method to convert probability curve to SVG polyline.
-        
-        Args:
-            shared_data: Shared visualization data
-            prob_key: Key for probability data in self._data (e.g., 'beat_activation', 'downbeat_activation')
-            svg_class: CSS class for the SVG group (e.g., 'beat-probability')
-            opacity: Optional opacity for the polyline (default 1.0)
-        '''
-        if self._data is None or "svg_context" not in shared_data:
-            return None
-        
-        ctx = shared_data["svg_context"]
-        beat_times = self._data.get("beat_times", [])
-        logits = self._data.get(prob_key, [])
-        
-        if len(beat_times) == 0:
-            return None
-        
-        ''' Convert data points to SVG coordinates '''
-        points = []
-        for t, logit in zip(beat_times, logits):
-            x = self._time_to_pixel_x(t, ctx)
-            y = self._logit_to_pixel_y(logit, ctx)
-            points.append(f"{x:.2f},{y:.2f}")
-        
-        points_str = " ".join(points)
-        color_hex = self._rgb_to_hex(self.color)
-        opacity_attr = f' opacity="{opacity}"' if opacity < 1.0 else ''
-
-        parts = [f'  <g id="{self.name}" class="layer {svg_class}">']
-        parts.extend(self._logit_axes_to_svg(ctx))
-        parts.append(f'    <polyline points="{points_str}" stroke="{color_hex}" stroke-width="{line_width}" fill="none"{opacity_attr}/>')
-        parts.append('  </g>')
-        return '\n'.join(parts)
-
 def _load_beat_npz(beat_file: str, required_keys: List[str], layer_name: str) -> Optional[Dict]:
     ''' Load and validate a BeatThis! .npz file with the required keys '''
     try:
@@ -287,7 +93,7 @@ def _load_beat_npz(beat_file: str, required_keys: List[str], layer_name: str) ->
         return None
 
 
-class BeatProbabilityLayer(Curve):
+class BeatLogits(Curve):
     """Visualizes raw beat logits from the BeatThis! algorithm."""
 
     def __init__(self, name: str = "Beat Probability", color='r', line_width: float = 0.5):
@@ -310,7 +116,7 @@ class BeatProbabilityLayer(Curve):
         return self._data["beat_times"], self._data["beat_activation"]
 
 
-class DownbeatProbabilityLayer(Curve):
+class DownbeatLogits(Curve):
     """Visualizes raw downbeat logits from the BeatThis! algorithm."""
 
     def __init__(self, name: str = "Downbeat Probability", color='blue', line_width: float = 0.5):

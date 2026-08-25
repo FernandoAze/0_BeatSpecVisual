@@ -15,7 +15,8 @@ beat_file  = str(root_dir/input_parent_dir/"beat_example1.npz")
 
 fig = Visualizer(audio=audio_file, score=svg_score, beats=beat_file)
 
-fig.add_panel(BeatAccurateLayer(line_width=0.7),
+fig.add_panel(BeatsLayer(line_width=0.7),
+              DownbeatsLayer(line_width=0.7),
               Waveform(color=(1, 0, 1), normalize=True))
 
 ''' score_position=1 keeps the panel above the score, matching the original layout '''

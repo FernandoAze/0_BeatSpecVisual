@@ -8,10 +8,10 @@ Main classes and functions for layered visualization system.
 from .visualization_system import Layer, Visualizer
 
 ''' Score warping and onset layers '''
-from .warp_score import Onsets_Layer, Warp_Score
+from .warp_score import Onset, Warp_Score
 
 ''' Spectrogram, Chromagram and Waveform layers '''
-from .Audio_Layers import Spectrogram, Chromagram, Waveform
+from .Audio_Layers import MelSpec, Chromagram, Waveform
 
 ''' Shape-based rendering primitives '''
 from .shapes import Curve, Events, Intervals, Field
@@ -19,9 +19,8 @@ from .shapes import Curve, Events, Intervals, Field
 ''' Beat analysis layers and utilities '''
 from .Beat_Layers import (
     Run_BeatThis,
-    BeatLayer,
-    BeatProbabilityLayer,
-    DownbeatProbabilityLayer,
+    BeatLogits,
+    DownbeatLogits,
     BeatAccurateLayer,
     BeatsLayer,
     DownbeatsLayer,
@@ -32,9 +31,9 @@ from .Beat_Layers import (
 __all__ = [
     'Layer',
     'Visualizer',
-    'Onsets_Layer',
+    'Onset',
     'Warp_Score',
-    'Spectrogram',
+    'MelSpec',
     'Chromagram',
     'Waveform',
     'Curve',
@@ -42,9 +41,8 @@ __all__ = [
     'Intervals',
     'Field',
     'Run_BeatThis',
-    'BeatLayer',
-    'BeatProbabilityLayer',
-    'DownbeatProbabilityLayer',
+    'BeatLogits',
+    'DownbeatLogits',
     'BeatAccurateLayer',
     'BeatsLayer',
     'DownbeatsLayer',

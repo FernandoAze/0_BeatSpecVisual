@@ -17,15 +17,16 @@ beat_file = Run_BeatThis(audio_path=audio_file, output_path=str(root_dir / input
 
 fig = Visualizer(audio=audio_file, score=svg_score, maps=maps_file, beats=beat_file)
 
-fig.add_panel(Spectrogram(freq_window=(100, 1500), color_map="summer"),
-              Onsets_Layer(onset_color=(0, 0, 0), line_width=0.3))
+fig.add_panel(MelSpec(freq_window=(100, 1500), color_map="summer"),
+              Onset(onset_color=(0, 0, 0), line_width=0.3))
 
-fig.add_panel(BeatProbabilityLayer(line_width=0.7),
-              DownbeatProbabilityLayer(line_width=0.7),
-              Onsets_Layer(onset_color=(0, 0, 0), line_width=0.3))
+fig.add_panel(BeatLogits(line_width=0.7),
+              DownbeatLogits(line_width=0.7),
+              Onset(onset_color=(0, 0, 0), line_width=0.3))
 
 fig.add_panel(Waveform(color=(1, 0, 1), normalize=True),
-              BeatAccurateLayer(line_width=1),
-              Onsets_Layer(onset_color=(0, 0, 0), line_width=0.3))
+              BeatsLayer(line_width=1),
+              DownbeatsLayer(line_width=1),
+              Onset(onset_color=(0, 0, 0), line_width=0.3))
 
 fig.compose("LDB_FIG.svg", print_output=True)
