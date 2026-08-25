@@ -91,12 +91,12 @@ class Visualizer:
         # print(f"Added layer: {layer.name}")
         return self
     
-    def add_panel(self, *layers: Layer, show_axes: bool = True) -> 'Visualizer':
+    def add_panel(self, *layers: Layer, show_axes: bool = True, height_scale: float = 1.0) -> 'Visualizer':
         '''
         Register a panel: a group of layers rendered together on their own axes,
         stacked as one row of the figure by compose().
         '''
-        self.panels.append({'layers': list(layers), 'show_axes': show_axes})
+        self.panels.append({'layers': list(layers), 'show_axes': show_axes, 'height_scale': height_scale})
         return self
     
     def load_all_layers(self, audio_path: str = None, **kwargs) -> bool:
@@ -627,9 +627,18 @@ class Visualizer:
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
+
+            ''' Pre-compute base panel dimensions from the warped score '''
+            from .warp_score import Warp_Score as _WS
+            self.shared_data['audio_duration'] = _WS().audio_duration(self.audio)
+            base_width, base_height = self.get_Layers_WidthHeight(self.score)
+
             panel_svgs = []
+            panel_heights = []
 
             for panel_index, panel in enumerate(self.panels):
+                scaled_height = int(round(base_height * panel.get('height_scale', 1.0)))
+
                 panel_viz = Visualizer()
                 for layer in panel['layers']:
                     panel_viz.add_layer(layer)
@@ -642,6 +651,7 @@ class Visualizer:
                 panel_svg = panel_viz.turn_to_SVG(
                     filename=str(tmp_path / f"panel_{panel_index}.svg"),
                     svg_warped_score=self.score,
+                    plot_size=(base_width, scaled_height),
                     show_axes=panel['show_axes'],
                     print_output=print_output,
                 )
@@ -651,26 +661,26 @@ class Visualizer:
                     print(f"✗ Error: Panel {panel_index} failed to export SVG")
                     return False
                 panel_svgs.append(panel_svg)
-
-            panel_width, panel_height = self.get_SVG_Root_Dimensions(panel_svgs[0], print_output)
+                panel_heights.append(scaled_height)
 
             ''' Insert the score among the rendered panels at score_position '''
-            rows = list(panel_svgs)
-            rows.insert(score_position, self.score)
+            rows = list(zip(panel_svgs, panel_heights))
+            rows.insert(score_position, (self.score, int(base_height)))
 
-            ''' y_k = k*(panel_height+gap) - score_trim is the arithmetic progression
-            that reproduces the previously hand-set offsets; the first row starts at
-            top_margin instead of 0 so it isn't clipped against the SVG's top edge. '''
+            ''' Accumulate y-offsets row by row so each panel's height_scale is respected.
+            score_trim overlaps the row immediately following the score. '''
             svg_layers_to_stack = []
-            y = 0.0
-            for row_index, svg_path in enumerate(rows):
-                y = top_margin if row_index == 0 else top_margin + row_index * (panel_height + gap) - score_trim
+            y = float(top_margin)
+            for i, (svg_path, row_height) in enumerate(rows):
                 svg_layers_to_stack.append((svg_path, y))
+                if i < len(rows) - 1:
+                    this_gap = gap - score_trim if i == score_position else gap
+                    y += row_height + this_gap
 
-            total_height = y + panel_height + score_trim
+            total_height = y + rows[-1][1] + score_trim
 
             return self.create_final_SVG(
-                width=panel_width,
+                width=base_width,
                 height=total_height,
                 svg_layers=svg_layers_to_stack,
                 output_file=output_file,

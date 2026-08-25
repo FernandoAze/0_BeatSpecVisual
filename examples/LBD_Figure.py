@@ -22,11 +22,13 @@ fig.add_panel(MelSpec(freq_window=(100, 1500), color_map="summer"),
 
 fig.add_panel(BeatLogits(line_width=0.7),
               DownbeatLogits(line_width=0.7),
-              Onset(onset_color=(0, 0, 0), line_width=0.3))
+              Onset(onset_color=(0, 0, 0), line_width=0.3),
+              height_scale=0.5)
 
 fig.add_panel(Waveform(color=(1, 0, 1), normalize=True),
               BeatsLayer(line_width=1),
               DownbeatsLayer(line_width=1),
-              Onset(onset_color=(0, 0, 0), line_width=0.3))
+              Onset(onset_color=(0, 0, 0), line_width=0.3),
+              height_scale=0.5)
 
 fig.compose("LDB_FIG.svg", print_output=True)
