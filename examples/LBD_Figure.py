@@ -12,11 +12,6 @@ from src.functions import *
 audio_file = str(root_dir / input_parent_dir / "ClairDeLune_MariaJoaoPires_untilM6.wav")
 svg_score = str(root_dir / input_parent_dir / "ClairDeLune_MariaJoaoPires_untilM6.svg")
 maps_file = str(root_dir / input_parent_dir / "ClairDeLune_MariaJoaoPires_untilM6.maps.json")
-# audio_file = str(root_dir / input_parent_dir / "DEBUSSY ClairDeLune.wav")
-# svg_score = str(root_dir / input_parent_dir / "Warped_ClairDeLune.svg")
-# maps_file = str(root_dir / input_parent_dir / "ClairDeLune_ONSETS.maps.json")
-
-# beat_file = Run_BeatThis(audio_path=audio_file, output_path=str(root_dir / input_parent_dir / "Clair_Beat.npz"), print_output=True)
 beat_file = str(root_dir / input_parent_dir / "Clair_Beat.npz")
 
 fig = Visualizer(audio=audio_file, score=svg_score, maps=maps_file, beats=beat_file)
