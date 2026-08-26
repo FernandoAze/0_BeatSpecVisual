@@ -565,13 +565,16 @@ class Visualizer:
             ''' Build final SVG markup '''
             svg_ns = 'http://www.w3.org/2000/svg'
             visual_groups_str = '\n'.join(visual_groups_markup)
-            
+
+            ''' panels are offset by ref_timeAxis_x, so the root viewBox must include that margin '''
+            root_width = width + (ref_timeAxis_x if ref_timeAxis_x is not None else 0)
+
             final_svg_markup = f'''<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="{svg_ns}"
      xmlns:xlink="http://www.w3.org/1999/xlink"
-     width="{width}px"
+     width="{root_width}px"
      height="{height}px"
-     viewBox="0 0 {width} {height}">
+     viewBox="0 0 {root_width} {height}">
   <rect x="0" y="0" width="100%" height="100%" fill="{background_color}" />
 {visual_groups_str}
 </svg>'''
@@ -587,7 +590,7 @@ class Visualizer:
                 f.write(final_svg_markup)
             
             if print_output:
-                print(f"✅ Final SVG created: {output_path} ({width}x{height}px)")
+                print(f"✅ Final SVG created: {output_path} ({root_width}x{height}px)")
             
             return output_path
             

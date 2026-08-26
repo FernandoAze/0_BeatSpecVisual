@@ -19,6 +19,8 @@ from .shapes import Curve, Events, Intervals, Field
 ''' Beat analysis layers and utilities '''
 from .Beat_Layers import (
     Run_BeatThis,
+    NPZ_to_BeatTXT,
+    NPZ_to_DownbeatTXT,
     BeatLogits,
     DownbeatLogits,
     BeatAccurateLayer,
@@ -41,6 +43,8 @@ __all__ = [
     'Intervals',
     'Field',
     'Run_BeatThis',
+    'NPZ_to_BeatTXT',
+    'NPZ_to_DownbeatTXT',
     'BeatLogits',
     'DownbeatLogits',
     'BeatAccurateLayer',

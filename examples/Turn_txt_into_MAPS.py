@@ -10,3 +10,4 @@ from src.functions.warp_score import TXT_to_Maps
 
 # TXT_to_Maps("Path/To/OnsetsFileIn.txt", "Path/And/Filename/To/outputFile.maps.json")
 
+TXT_to_Maps("/home/macacomalandro/Documents/GitHub/LayerIt/src/input_files/ClairDeLune/ClairDeLune_MariaJoaoPires_untilM6.txt", "/home/macacomalandro/Documents/GitHub/LayerIt/src/input_files/ClairDeLune/ClairDeLune_MariaJoaoPires_untilM6.maps.json")

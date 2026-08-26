@@ -19,8 +19,8 @@ from .visualization_system import Layer
 from .shapes import Events
 
 class Onset(Events):
-    def __init__(self, name: str = "obs_mean_onsets", onset_color: str = 'yellow', line_width: float = 0.2):
-        super().__init__(name, color=onset_color, line_width=line_width, dashed=True, svg_class="onsets")
+    def __init__(self, name: str = "obs_mean_onsets", onset_color: str = 'yellow', line_width: float = 0.2, line_type: str = "dotted"):
+        super().__init__(name, color=onset_color, line_width=line_width, line_type=line_type, svg_class="onsets")
         self.onset_color = onset_color
 
     def load_data(self, maps_file: str = None, **kwargs) -> bool:

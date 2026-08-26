@@ -24,4 +24,4 @@ fig.add_panel(MelSpec(freq_window=(20, 2000), color_map="cool"),
               DownbeatsLayer(),
               Onset(onset_color=(0, 0, 0), line_width=0.5))
 
-fig.compose("FIG522.svg", score_position=1, print_output=True)
+fig.compose("2_FIG522.svg", score_position=1, print_output=True)

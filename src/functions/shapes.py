@@ -185,12 +185,12 @@ class Events(Layer):
     """A set of instantaneous markers (vertical lines): onsets, beats, downbeats."""
 
     def __init__(self, name: str, color, line_width: float = 0.5,
-                 dashed: bool = False, label: Optional[str] = None,
+                 line_type: str = "solid", label: Optional[str] = None,
                  secondary_axis: bool = False, svg_class: str = "events"):
         super().__init__(name)
         self.color = color
         self.line_width = line_width
-        self.dashed = dashed
+        self.line_type = line_type
         self.label = label or name
         self.secondary_axis = secondary_axis
         self.svg_class = svg_class
@@ -217,7 +217,8 @@ class Events(Layer):
             return [], []
 
         target_ax = self._setup_secondary_axis(ax, shared_data) if self.secondary_axis else ax
-        style = '--' if self.dashed else '-'
+        _mpl_styles = {"solid": "-", "dashed": "--", "dotted": ":", "dashdotted": "-."}
+        style = _mpl_styles.get(self.line_type, "-")
         lines = [target_ax.axvline(x=t, color=self.color, linestyle=style, linewidth=self.line_width, label=self.label)
                  for t in times]
         return lines, [self.label] if lines else []
@@ -232,7 +233,8 @@ class Events(Layer):
 
         ctx = shared_data["svg_context"]
         color_hex = rgb_to_hex(self.color)
-        dash_attr = ' stroke-dasharray="2,2"' if self.dashed else ''
+        _svg_dash = {"dashed": ' stroke-dasharray="4,4"', "dotted": ' stroke-dasharray="1,3" stroke-linecap="round"', "dashdotted": ' stroke-dasharray="4,2,1,2"'}
+        dash_attr = _svg_dash.get(self.line_type, '')
         return [
             f'    <line x1="{time_to_pixel_x(t, ctx):.2f}" y1="0" x2="{time_to_pixel_x(t, ctx):.2f}" y2="{ctx["height_px"]}" stroke="{color_hex}" stroke-width="{self.line_width}"{dash_attr}/>'
             for t in times

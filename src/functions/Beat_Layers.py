@@ -93,6 +93,75 @@ def _load_beat_npz(beat_file: str, required_keys: List[str], layer_name: str) ->
         return None
 
 
+def NPZ_to_BeatTXT(beat_file: str, output_file: str = None, print_output: bool = False) -> Optional[str]:
+    '''
+    Extract detected beats (excluding downbeats) from a BeatThis! .npz and
+    write a tab-separated TXT file with beat index and time.
+
+    Output format:
+        1    0.523100
+        2    0.981400
+        ...
+    '''
+    from pathlib import Path
+    try:
+        data = _load_beat_npz(beat_file, ['detected_beats', 'detected_downbeats'], 'NPZ_to_BeatTXT')
+        if data is None:
+            return None
+
+        downbeat_set = set(np.round(data['detected_downbeats'], 6))
+        beats = sorted(t for t in data['detected_beats'] if round(t, 6) not in downbeat_set)
+
+        if output_file is None:
+            output_file = str(Path(beat_file).with_suffix('')) + '_beats.txt'
+
+        with open(output_file, 'w') as f:
+            for idx, t in enumerate(beats, start=1):
+                f.write(f"{idx}\t{t:.6f}\n")
+
+        if print_output:
+            print(f"✓ NPZ_to_BeatTXT: {len(beats)} beats written to {output_file}")
+        return output_file
+
+    except Exception as e:
+        print(f"✗ NPZ_to_BeatTXT error: {e}")
+        return None
+
+
+def NPZ_to_DownbeatTXT(beat_file: str, output_file: str = None, print_output: bool = False) -> Optional[str]:
+    '''
+    Extract detected downbeats from a BeatThis! .npz and write a
+    tab-separated TXT file with downbeat index and time.
+
+    Output format:
+        1    0.523100
+        2    1.899800
+        ...
+    '''
+    from pathlib import Path
+    try:
+        data = _load_beat_npz(beat_file, ['detected_downbeats'], 'NPZ_to_DownbeatTXT')
+        if data is None:
+            return None
+
+        downbeats = sorted(data['detected_downbeats'])
+
+        if output_file is None:
+            output_file = str(Path(beat_file).with_suffix('')) + '_downbeats.txt'
+
+        with open(output_file, 'w') as f:
+            for idx, t in enumerate(downbeats, start=1):
+                f.write(f"{idx}\t{t:.6f}\n")
+
+        if print_output:
+            print(f"✓ NPZ_to_DownbeatTXT: {len(downbeats)} downbeats written to {output_file}")
+        return output_file
+
+    except Exception as e:
+        print(f"✗ NPZ_to_DownbeatTXT error: {e}")
+        return None
+
+
 class BeatLogits(Curve):
     """Visualizes raw beat logits from the BeatThis! algorithm."""
 
@@ -142,8 +211,8 @@ class DownbeatLogits(Curve):
 class BeatsLayer(Events):
     """Visualizes detected beat times (excluding downbeats) as vertical markers."""
 
-    def __init__(self, name: str = "Beat", color='red', line_width: float = 1):
-        super().__init__(name, color=color, line_width=line_width, secondary_axis=True, svg_class='beat-marker')
+    def __init__(self, name: str = "Beat", color='red', line_width: float = 1, line_type: str = "solid"):
+        super().__init__(name, color=color, line_width=line_width, line_type=line_type, secondary_axis=True, svg_class='beat-marker')
 
     def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
         data = _load_beat_npz(beat_file, ['detected_beats', 'detected_downbeats'], self.name)
@@ -164,8 +233,8 @@ class BeatsLayer(Events):
 class DownbeatsLayer(Events):
     """Visualizes detected downbeat times as vertical markers."""
 
-    def __init__(self, name: str = "Downbeat", color='blue', line_width: float = 1):
-        super().__init__(name, color=color, line_width=line_width, secondary_axis=True, svg_class='downbeat-marker')
+    def __init__(self, name: str = "Downbeat", color='blue', line_width: float = 1, line_type: str = "solid"):
+        super().__init__(name, color=color, line_width=line_width, line_type=line_type, secondary_axis=True, svg_class='downbeat-marker')
 
     def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
         data = _load_beat_npz(beat_file, ['detected_beats', 'detected_downbeats'], self.name)

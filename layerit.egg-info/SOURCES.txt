@@ -8,5 +8,6 @@ layerit.egg-info/top_level.txt
 src/functions/Audio_Layers.py
 src/functions/Beat_Layers.py
 src/functions/__init__.py
+src/functions/shapes.py
 src/functions/visualization_system.py
 src/functions/warp_score.py
