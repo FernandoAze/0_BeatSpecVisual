@@ -53,7 +53,8 @@ class Curve(Layer):
     def __init__(self, name: str, color, line_width: float = 0.5,
                  alpha: float = 1.0, label: Optional[str] = None,
                  secondary_axis: bool = False, axis_label: Optional[str] = None,
-                 decimate_per_pixel: Optional[int] = None, svg_class: str = "curve"):
+                 decimate_per_pixel: Optional[int] = None, svg_class: str = "curve",
+                 line_type: str = "solid"):
         super().__init__(name)
         self.color = color
         self.line_width = line_width
@@ -63,6 +64,7 @@ class Curve(Layer):
         self.axis_label = axis_label
         self.decimate_per_pixel = decimate_per_pixel
         self.svg_class = svg_class
+        self.line_type = line_type
 
     @abstractmethod
     def _get_xy(self, shared_data: Dict[str, Any]) -> Optional[Tuple[np.ndarray, np.ndarray]]:
@@ -100,7 +102,9 @@ class Curve(Layer):
         x, y = xy
 
         target_ax = self._setup_secondary_axis(ax, shared_data, y) if self.secondary_axis else ax
-        line, = target_ax.plot(x, y, '-', color=self.color, linewidth=self.line_width,
+        _mpl_styles = {"solid": "-", "dashed": "--", "dotted": ":", "dashdotted": "-."}
+        style = _mpl_styles.get(self.line_type, "-")
+        line, = target_ax.plot(x, y, style, color=self.color, linewidth=self.line_width,
                                 alpha=self.alpha, label=self.label)
         return [line], [self.label]
 
@@ -173,10 +177,12 @@ class Curve(Layer):
 
         color_hex = rgb_to_hex(self.color)
         opacity_attr = f' opacity="{self.alpha}"' if self.alpha < 1.0 else ''
+        _svg_dash = {"dashed": ' stroke-dasharray="4,4"', "dotted": ' stroke-dasharray="1,3" stroke-linecap="round"', "dashdotted": ' stroke-dasharray="4,2,1,2"'}
+        dash_attr = _svg_dash.get(self.line_type, '')
 
         parts = [f'  <g id="{self.name}" class="layer {self.svg_class}">']
         parts.extend(self._axis_svg(ctx, y_min, y_max, tick_format, axis_flag))
-        parts.append(f'    <polyline points="{points}" stroke="{color_hex}" stroke-width="{self.line_width}" fill="none"{opacity_attr}/>')
+        parts.append(f'    <polyline points="{points}" stroke="{color_hex}" stroke-width="{self.line_width}" fill="none"{opacity_attr}{dash_attr}/>')
         parts.append('  </g>')
         return '\n'.join(parts)
 

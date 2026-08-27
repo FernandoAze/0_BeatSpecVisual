@@ -16,14 +16,14 @@ beat_file = str(root_dir / input_parent_dir / "Clair_Beat.npz")
 
 fig = Visualizer(audio=audio_file, score=svg_score, maps=maps_file, beats=beat_file)
 
-fig.add_panel(BeatLogits(line_width=0.7, color=('#E69F00')),
-              DownbeatLogits(line_width=0.7, color=('#0072B2')),
-              Onset(onset_color=(0, 0, 0), line_width=0.3,line_type="dotted"),
+fig.add_panel(Onset(onset_color=(0, 0, 0), line_width=0.5, line_type="dashed"),
+              BeatLogits(line_width=1.5, color=('#E69F00'), line_type="dotted"),
+              DownbeatLogits(line_width=1.5, color=('#0072B2')),
               height_scale=0.5)
 
 fig.add_panel(Waveform(color=(1, 0, 1), normalize=True),
-              BeatsLayer(line_width=1, color=('#E69F00'),line_type="dashed"),
-              DownbeatsLayer(line_width=1, color=('#0072B2')),
+              BeatsLayer(line_width=1.5, color=('#E69F00'),line_type="dotted"),
+              DownbeatsLayer(line_width=1.5, color=('#0072B2')),
               height_scale=0.5)
 
 fig.add_panel(MelSpec(freq_window=(100, 1500), color_map="summer"))

@@ -165,10 +165,10 @@ def NPZ_to_DownbeatTXT(beat_file: str, output_file: str = None, print_output: bo
 class BeatLogits(Curve):
     """Visualizes raw beat logits from the BeatThis! algorithm."""
 
-    def __init__(self, name: str = "Beat Probability", color='r', line_width: float = 0.5):
+    def __init__(self, name: str = "Beat Probability", color='r', line_width: float = 0.5, line_type: str = "solid"):
         super().__init__(name, color=color, line_width=line_width, label='Beat Logit',
                           secondary_axis=True, axis_label='Beat activation (logit)',
-                          svg_class='beat-probability')
+                          svg_class='beat-probability', line_type=line_type)
 
     def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
         data = _load_beat_npz(beat_file, ['beat_times', 'beat_activation'], self.name)
@@ -188,10 +188,10 @@ class BeatLogits(Curve):
 class DownbeatLogits(Curve):
     """Visualizes raw downbeat logits from the BeatThis! algorithm."""
 
-    def __init__(self, name: str = "Downbeat Probability", color='blue', line_width: float = 0.5):
+    def __init__(self, name: str = "Downbeat Probability", color='blue', line_width: float = 0.5, line_type: str = "solid"):
         super().__init__(name, color=color, line_width=line_width, alpha=0.9, label='Downbeat Logit',
                           secondary_axis=True, axis_label='Beat activation (logit)',
-                          svg_class='downbeat-probability')
+                          svg_class='downbeat-probability', line_type=line_type)
 
     def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
         data = _load_beat_npz(beat_file, ['beat_times', 'downbeat_activation'], self.name)
