@@ -16,9 +16,8 @@ from .Audio_Layers import MelSpec, Chromagram, Waveform
 ''' Shape-based rendering primitives '''
 from .shapes import Curve, Events, Intervals, Field
 
-''' Beat analysis layers and utilities '''
+''' Beat visualization layers and utilities '''
 from .Beat_Layers import (
-    Run_BeatThis,
     NPZ_to_BeatTXT,
     NPZ_to_DownbeatTXT,
     BeatLogits,
@@ -42,7 +41,6 @@ __all__ = [
     'Events',
     'Intervals',
     'Field',
-    'Run_BeatThis',
     'NPZ_to_BeatTXT',
     'NPZ_to_DownbeatTXT',
     'BeatLogits',

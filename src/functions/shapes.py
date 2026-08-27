@@ -46,7 +46,7 @@ def value_to_pixel_y(value: float, y_min: float, y_max: float, height_px: float)
 
 class Curve(Layer):
     """A single 2D line: a raw signal (e.g. a waveform) or a per-frame
-    activation curve (e.g. a BeatThis! logit), drawn on the panel's primary
+    activation curve (e.g. a beat logit), drawn on the panel's primary
     axis or on a shared secondary axis.
     """
 

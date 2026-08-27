@@ -1,6 +1,5 @@
 """
-BeatThis! algorithm visualization layers.
-Contains all visualization layers specific to the BeatThis! beat tracking algorithm.
+Beat visualization layers: logit curves, detected event markers, and confidence windows.
 """
 
 import numpy as np
@@ -11,72 +10,9 @@ from typing import Dict, Any, List, Tuple, Optional
 ''' Import Layer base class and shape primitives '''
 from .visualization_system import Layer
 from .shapes import Curve, Events, Intervals
-"""
-Utility class to run BeatThis! beat detection and save results.
-Wraps the run_beat_detection function from beat_this_analysis_gen.py.
-"""
-
-def Run_BeatThis(audio_path, output_path: str = None, print_output: bool = False) -> str:
-    #This functions makes a beat prediction using BeatThis! Algorithm. 
-    #It saves the output in a .npz that will be loaded into the beat visualization layers.
-    from beat_this.inference import Audio2Frames, Audio2Beats
-    from beat_this.preprocessing import load_audio
-    from pathlib import Path
-    import numpy as np
-
-    if print_output:
-        print("\033[92m\n" + "="*60)
-        print("RUNNING BEATTHIS!")
-        print("="*60 + "\033[0m")
-    
-    waveform, sample_rate = load_audio(audio_path)
-    
-    if print_output:
-        print(f"✓ Audio loaded. Sample rate: {sample_rate}, Duration: {len(waveform) / sample_rate:.2f}s")
-    
-    if print_output:
-        print("Initializing model (downloading checkpoint if needed)...")
-    detector = Audio2Frames(checkpoint_path="final0", device="cpu")
-    if print_output:
-        print("✓ Model initialized. Processing audio...")
-
-    beat_logits, downbeat_logits = detector(waveform, sample_rate)
-
-    hop_length = 441
-    target_sr = 22050
-    beat_times = np.arange(len(beat_logits)) * (hop_length / target_sr)
-    
-    if print_output:
-        print("Detecting beat positions...")
-    beat_detector = Audio2Beats(checkpoint_path="final0", device="cpu")
-    detected_beats, detected_downbeats = beat_detector(waveform, sample_rate)
-    
-    if print_output:
-        print(f"✓ Detected {len(detected_beats)} beats and {len(detected_downbeats)} downbeats")
-    
-    # Create absolute path for output
-    module_dir = Path(__file__).parent
-    output_dir = module_dir.parent / "input_files" / "beat_this_analysis"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_file = output_dir / "beat_activation.npz"
-    
-    if print_output:
-        print("✓ Saving output files...")
-    if output_path is None:
-        output_path = str(output_file)
-
-    np.savez(output_path,
-            beat_times=beat_times,
-            beat_activation=beat_logits.numpy(),
-            downbeat_activation=downbeat_logits.numpy(),
-            detected_beats=detected_beats,
-            detected_downbeats=detected_downbeats)
-    if print_output:
-        print(f"✓ File saved: {output_path}")
-    return output_path
 
 def _load_beat_npz(beat_file: str, required_keys: List[str], layer_name: str) -> Optional[Dict]:
-    ''' Load and validate a BeatThis! .npz file with the required keys '''
+    ''' Load and validate a beat .npz file with the required keys '''
     try:
         if beat_file is None:
             return None
@@ -95,7 +31,7 @@ def _load_beat_npz(beat_file: str, required_keys: List[str], layer_name: str) ->
 
 def NPZ_to_BeatTXT(beat_file: str, output_file: str = None, print_output: bool = False) -> Optional[str]:
     '''
-    Extract detected beats (excluding downbeats) from a BeatThis! .npz and
+    Extract detected beats (excluding downbeats) from a beat .npz and
     write a tab-separated TXT file with beat index and time.
 
     Output format:
@@ -130,7 +66,7 @@ def NPZ_to_BeatTXT(beat_file: str, output_file: str = None, print_output: bool =
 
 def NPZ_to_DownbeatTXT(beat_file: str, output_file: str = None, print_output: bool = False) -> Optional[str]:
     '''
-    Extract detected downbeats from a BeatThis! .npz and write a
+    Extract detected downbeats from a beat .npz and write a
     tab-separated TXT file with downbeat index and time.
 
     Output format:
@@ -163,7 +99,7 @@ def NPZ_to_DownbeatTXT(beat_file: str, output_file: str = None, print_output: bo
 
 
 class BeatLogits(Curve):
-    """Visualizes raw beat logits from the BeatThis! algorithm."""
+    """Visualizes raw beat logits as a line overlay."""
 
     def __init__(self, name: str = "Beat Probability", color='r', line_width: float = 0.5, line_type: str = "solid"):
         super().__init__(name, color=color, line_width=line_width, label='Beat Logit',
@@ -186,7 +122,7 @@ class BeatLogits(Curve):
 
 
 class DownbeatLogits(Curve):
-    """Visualizes raw downbeat logits from the BeatThis! algorithm."""
+    """Visualizes raw downbeat logits as a line overlay."""
 
     def __init__(self, name: str = "Downbeat Probability", color='blue', line_width: float = 0.5, line_type: str = "solid"):
         super().__init__(name, color=color, line_width=line_width, alpha=0.9, label='Downbeat Logit',

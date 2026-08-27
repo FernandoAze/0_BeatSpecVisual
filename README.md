@@ -52,7 +52,7 @@ Alternatively, to install dependencies only (e.g. when developing against `src/f
 pip install -r requirements.txt
 ```
 
-**Core dependencies:** `librosa`, `matplotlib`, `numpy`, `soundfile`, `torch`, `beat_this`, `scikit-learn`, `Pillow`
+**Core dependencies:** `librosa`, `matplotlib`, `numpy`, `soundfile`, `scikit-learn`, `Pillow`
 
 ---
 
@@ -75,19 +75,20 @@ Layers are assembled and rendered by a `Visualizer` instance, which manages the 
 
 ```
 Audio (.wav)
-  ├─ Run_BeatThis()  →  beat_data.npz   ──────────────────────┐
-  └─ Spectrogram() / Chromagram() / Waveform() ────────────────┤
-                                                               ▼
-MAPS JSON + Warped Score SVG  →  Onsets_Layer / Warp_Score  → Visualizer
-                                                               │
-                                                    ┌──────────┴──────────┐
-                                                    ▼                     ▼
-                                               PNG export           SVG export
-                                                                  (per-layer groups)
-                                                                         │
-                                                                         ▼
-                                                               create_final_SVG()
-                                                               → Composite multi-panel SVG
+  └─ Spectrogram() / Chromagram() / Waveform() ─────────────────────┐
+                                                                     ▼
+Beat .npz (external) ────────────────────────────────────────────── ┤
+                                                                     ▼
+MAPS JSON + Warped Score SVG  →  Onset / Warp_Score  ──────────── Visualizer
+                                                                     │
+                                                         ┌───────────┴───────────┐
+                                                         ▼                       ▼
+                                                   PNG export               SVG export
+                                                                       (per-layer groups)
+                                                                               │
+                                                                               ▼
+                                                                         compose()
+                                                                  → Composite multi-panel SVG
 ```
 
 ---
@@ -97,28 +98,25 @@ MAPS JSON + Warped Score SVG  →  Onsets_Layer / Warp_Score  → Visualizer
 ### `src/functions/visualization_system.py`
 - **`Layer`** — Abstract base class for all visualization layers.
 - **`Visualizer`** — Orchestrates layer composition, data loading, drawing, and export. Key methods:
-  - `add_layer(layer)` — Register a layer
-  - `load_all_layers(audio_path, **kwargs)` — Load all layers; computes audio duration into `shared_data`
-  - `draw()` — Render all layers onto a single Matplotlib figure
-  - `turn_to_PNG(filename, svg_warped_score, dpi, print_output)` — Export rasterized PNG with exact pixel dimensions
-  - `turn_to_SVG(filename, svg_warped_score, show_axes, print_output)` — Export vector SVG with each layer as a named `<g>` group
-  - `create_final_SVG(width, height, svg_layers, output_file, background_color, print_output)` — Stacks multiple SVG/PNG visualizations at given y-offsets into a single composite SVG
-  - `get_SVG_Root_Dimensions(svg_warped_score)` — Reads width/height from an SVG's root element
-  - `get_timeAxis_attributes(svg_warped_score)` — Reads the total timeline duration and pixel length from a warped score's `timeAxis` group
+  - `add_panel(*layers, height_scale, show_axes)` — Add a panel (one or more layers stacked on the same axis)
+  - `compose(output_file, gap, score_position, print_output)` — Render all panels and the score into a single composite SVG
 
 ### `src/functions/Beat_Layers.py`
-Beat visualization layers built on top of the [**BeatThis!**](https://github.com/CPJKU/beat_this) beat tracking algorithm.
+Beat visualization layers that consume a pre-computed beat `.npz` file.
 
 | Class / Function | Description |
 |---|---|
-| `Run_BeatThis(audio_path, output_path)` | Runs BeatThis! inference on a WAV file; saves beat/downbeat logits and detected events to `.npz` |
-| `BeatProbabilityLayer` | Plots the raw beat logit curve as a line overlay |
-| `DownbeatProbabilityLayer` | Plots the raw downbeat logit curve as a line overlay |
-| `BeatAccurateLayer` | Renders detected beat and downbeat positions as vertical marker lines |
+| `BeatLogits` | Plots the raw beat logit curve as a line overlay |
+| `DownbeatLogits` | Plots the raw downbeat logit curve as a line overlay |
+| `BeatsLayer` | Renders detected beat positions (excluding downbeats) as vertical markers |
+| `DownbeatsLayer` | Renders detected downbeat positions as vertical markers |
+| `BeatAccurateLayer` | Legacy combined beats + downbeats marker layer |
 | `BeatWindowLayer` | Highlights beat confidence windows; opacity gradient from threshold to peak |
 | `DownbeatWindowLayer` | Highlights downbeat confidence windows; opacity gradient from threshold to peak |
+| `NPZ_to_BeatTXT` | Writes detected beats (excluding downbeats) from a `.npz` to a tab-separated TXT file |
+| `NPZ_to_DownbeatTXT` | Writes detected downbeats from a `.npz` to a tab-separated TXT file |
 
-All beat layers share a secondary logit y-axis (`ax2`) via the `BeatLayer` base class. A logit of `0` corresponds to a sigmoid probability of 50%.
+All beat layers share a secondary logit y-axis (`ax2`) via the `BeatLayer` base class. A logit of `0` corresponds to a sigmoid probability of 50%. The expected `.npz` keys are `beat_times`, `beat_activation`, `downbeat_activation`, `detected_beats`, and `detected_downbeats`.
 
 ### `src/functions/Audio_Layers.py`
 | Class | Description |
@@ -142,13 +140,15 @@ Utilities for score–audio alignment and SVG compositing.
 
 ```python
 from layerit import (
-    Spectrogram,
+    MelSpec,
     Chromagram,
     Waveform,
-    Onsets_Layer,
-    BeatProbabilityLayer,
-    DownbeatProbabilityLayer,
+    Onset,
+    BeatLogits,
+    DownbeatLogits,
     BeatAccurateLayer,
+    BeatsLayer,
+    DownbeatsLayer,
     BeatWindowLayer,
     DownbeatWindowLayer,
 )
@@ -163,17 +163,18 @@ If `layerit` is not installed (e.g. running scripts directly from the repository
 | File | Format | Description |
 |---|---|---|
 | Audio recording | `.wav` | The performance to analyse |
-| Beat analysis | `.npz` | Output of `Run_BeatThis()`; contains logits and detected events |
+| Beat data | `.npz` | Pre-computed beat/downbeat logits and events (see keys below) |
 | Warped score | `.svg` | Score image with an embedded `timeAxis` group (output of ScoreWarp) |
 | Alignment maps | `.maps.json` | Array of `{ obs_mean_onset, xml_id }` entries mapping score elements to performance time |
+
+The `.npz` must contain the keys `beat_times`, `beat_activation`, `downbeat_activation`, `detected_beats`, and `detected_downbeats`. Generate it with any beat tracker and save with `numpy.savez`.
 
 ### Obtaining Prerequisite Files
 
 - **Score alignment (MAPS)** — Use [trompa-align](https://github.com/trompamusic/trompa-align)
-  > Weigl, D. (2020). *Multimodal Music Information Alignment*. TROMPA Deliverable TR-D3.5.
 - **Score warping (SVG)** — Use [ScoreWarp](https://github.com/) to generate a time-axis-annotated SVG from MEI or MusicXML
   - [Verovio Online Editor](https://editor.verovio.org/) — preview and edit MEI files
-  - [MusicXML Converter](https://musicxml.tools/converter) — convert `.mxl` to `.musicxml`
+- **Beat data (.npz)** — Run any beat tracker and save results with `numpy.savez` using the keys listed in the Data Requirements section.
 
 ---
 
@@ -182,28 +183,18 @@ If `layerit` is not installed (e.g. running scripts directly from the repository
 ### Minimal Example
 
 ```python
-from layerit import Visualizer, Spectrogram, BeatProbabilityLayer, Onsets_Layer
+from layerit import Visualizer, MelSpec, BeatLogits, Onset
 
-viz = Visualizer()
-viz.add_layer(Spectrogram(freq_window=(20, 2000), color_map="magma"))
-viz.add_layer(BeatProbabilityLayer(color='red'))
-viz.add_layer(Onsets_Layer(onset_color='white'))
-
-viz.load_all_layers(
-    audio_path="path/to/recording.wav",
-    beat_file="path/to/beat_data.npz",
-    maps_file="path/to/alignment.maps.json"
-)
-
-fig, ax = viz.draw()
-viz.turn_to_PNG("output/visualization.png", svg_warped_score="path/to/score.svg", dpi=300)
+fig = Visualizer(audio="recording.wav", score="score.svg", maps="alignment.maps.json", beats="beats.npz")
+fig.add_panel(MelSpec(freq_window=(20, 2000), color_map="magma"),
+              BeatLogits(),
+              Onset(onset_color='white', line_width=0.3))
+fig.compose("output.svg")
 ```
 
-### Full Pipeline Example
+### Full Example
 
-See [examples/BWV856_COMBINE.py](examples/BWV856_COMBINE.py) and [examples/BWV856_EXAMPLE3 SelfComparison copy.py](examples/BWV856_EXAMPLE3%20SelfComparison%20copy.py) for stacking multiple performance visualizations into a single comparative SVG using `create_final_SVG()`.
-
-See [examples/Figure521.py](examples/Figure521.py), [examples/Figure522.py](examples/Figure522.py), [examples/Figure523.py](examples/Figure523.py) and [examples/Figure524.py](examples/Figure524.py) for smaller, focused examples combining `Spectrogram`, `Chromagram`, `Waveform`, `Onsets_Layer` and the beat layers.
+See [examples/LBD_Figure.py](examples/LBD_Figure.py) for the complete case study figure from the paper: a three-panel layout with beat logit curves, a waveform with beat markers, and a mel spectrogram with onsets.
 
 ### Converting Annotation Files
 
@@ -221,6 +212,15 @@ Input format (tab-separated):
 0.470204082    v2xdb2q
 ```
 
+`NPZ_to_BeatTXT` and `NPZ_to_DownbeatTXT` extract detected events from a `.npz` to plain text:
+
+```python
+from layerit import NPZ_to_BeatTXT, NPZ_to_DownbeatTXT
+
+NPZ_to_BeatTXT("beats.npz", output_file="beats.txt")
+NPZ_to_DownbeatTXT("beats.npz", output_file="downbeats.txt")
+```
+
 ---
 
 ## Output
@@ -229,59 +229,44 @@ All outputs are directed to the `output/` directory by default.
 
 | Format | Method | Notes |
 |---|---|---|
-| PNG | `turn_to_PNG()` | Rasterized at configurable DPI; dimensions matched to warped score |
-| SVG (layers) | `turn_to_SVG()` | Vector; each layer rendered as a named `<g class="layer ...">` group |
-| SVG (multi-panel) | `create_final_SVG()` | Multiple visualizations stacked vertically into a single composite SVG |
+| SVG (multi-panel) | `compose()` | Panels + warped score stacked vertically; each layer is a named `<g class="layer ...">` group |
 
 ---
 
 ## Project Structure
 
 ```
-LayerIt!/
+LayerIt/
 ├── README.md
 ├── requirements.txt
 ├── pyproject.toml
-├── agents.md
 ├── src/
 │   ├── functions/
 │   │   ├── __init__.py
 │   │   ├── visualization_system.py   # Layer ABC + Visualizer
-│   │   ├── Beat_Layers.py            # Run_BeatThis + BeatThis! layers
-│   │   ├── Audio_Layers.py           # Spectrogram, Chromagram, Waveform layers
-│   │   └── warp_score.py             # Onsets_Layer, Warp_Score, TXT_to_Maps
+│   │   ├── shapes.py                 # Curve, Events, Intervals, Field base classes
+│   │   ├── Beat_Layers.py            # Beat logit/marker/window layers
+│   │   ├── Audio_Layers.py           # MelSpec, Chromagram, Waveform
+│   │   └── warp_score.py             # Onset, Warp_Score, TXT_to_Maps
 │   └── input_files/
-│       ├── BWV856/
-│       │   ├── BWV856.mei
-│       │   ├── bwv856 LouJ01 asap.maps
-│       │   ├── Performance1/         # Andras Schiff
-│       │   ├── Performance2/         # Glenn Gould
-│       │   ├── Performance3/         # Marta Argherich
-│       │   └── TXTS/                 # Raw onset annotations (.txt)
-│       ├── Chopin_op10_ScoreWarpDemo/
-│       ├── ClairDeLune/
-│       └── PreludeN2/
+│       └── ClairDeLune/              # Case study: Clair de Lune, bars 1–6
+│           ├── clair-de-lune M6-basic.mei
+│           ├── ClairDeLune_MariaJoaoPires_untilM6.maps.json
+│           ├── ClairDeLune_MariaJoaoPires_untilM6.svg
+│           ├── ClairDeLune_MariaJoaoPires_untilM6.wav  # 6-bar excerpt
+│           └── Clair_Beat.npz
 ├── examples/
-│   ├── BWV856_EXAMPLE1.py
-│   ├── BWV856_EXAMPLE2.py
-│   ├── BWV856_EXAMPLE2_SelfComparison.py
-│   ├── BWV856_EXAMPLE3 SelfComparison copy.py
-│   ├── BWV856_COMBINE.py
-│   ├── BWV856_FIGURE5_2_1.py
-│   ├── Figure521.py
-│   ├── Figure522.py
-│   ├── Figure523.py
-│   ├── Figure524.py
-│   ├── LBD_Figure.py
-│   └── Turn_txt_into_MAPS.py
+│   ├── LBD_Figure.py                 # Reproduces the paper figure
+│   ├── Turn_txt_into_MAPS.py
+│   └── BEAT_to_TXT.py
 └── output/
+    └── LDB_FIG.svg                   # Rendered figure
 ```
 
 ---
 
 ## Resources
 
-- [BeatThis!](https://github.com/CPJKU/beat_this) — Beat tracking model used for beat/downbeat analysis
 - [trompa-align](https://github.com/trompamusic/trompa-align) — Score-to-performance alignment, produces MAPS JSON
 - [Verovio Online Editor](https://editor.verovio.org/) — Visualise and edit MEI score files
 - [MusicXML Converter](https://musicxml.tools/converter) — Convert `.mxl` to `.musicxml`
