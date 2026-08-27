@@ -172,7 +172,7 @@ The `.npz` must contain the keys `beat_times`, `beat_activation`, `downbeat_acti
 ### Obtaining Prerequisite Files
 
 - **Score alignment (MAPS)** — Use [trompa-align](https://github.com/trompamusic/trompa-align)
-- **Score warping (SVG)** — Use [ScoreWarp](https://github.com/) to generate a time-axis-annotated SVG from MEI or MusicXML
+- **Score warping (SVG)** — Use [ScoreWarp](https://iwk-digital.github.io/scorewarp/) to generate a time-axis-annotated SVG from MEI or MusicXML
   - [Verovio Online Editor](https://editor.verovio.org/) — preview and edit MEI files
 - **Beat data (.npz)** — Run any beat tracker and save results with `numpy.savez` using the keys listed in the Data Requirements section.
 
@@ -267,6 +267,7 @@ LayerIt/
 
 ## Resources
 
+- [ScoreWarp](https://iwk-digital.github.io/scorewarp/) — Generate time-axis-annotated SVGs from MEI or MusicXML
 - [trompa-align](https://github.com/trompamusic/trompa-align) — Score-to-performance alignment, produces MAPS JSON
 - [Verovio Online Editor](https://editor.verovio.org/) — Visualise and edit MEI score files
 - [MusicXML Converter](https://musicxml.tools/converter) — Convert `.mxl` to `.musicxml`
