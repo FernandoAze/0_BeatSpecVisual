@@ -15,6 +15,7 @@ dependencies = [
     "soundfile==0.13.1",
     "scikit-learn",
     "Pillow",
+    "cairosvg==2.7.0"
 ]
 
 [tool.setuptools]

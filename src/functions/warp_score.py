@@ -440,14 +440,7 @@ class Warp_Score():
         layers_width = float(layers_width.replace('px', ''))
         layers_height = float(layers_height.replace('px', ''))
 
-        #MMMMMMMMMMMMMMMMMMMM
-        #MMMMMM???????MMMMMMM
-        #MMMMMMMMMMMMMMMMMMMM
-        ''' Target height to match PNG display height '''
         target_height = 110
-        #MMMMMMMMMMMMMMMMMMMM
-        #MMMMMM???????MMMMMMM
-        #MMMMMMMMMMMMMMMMMMMM
 
         ''' Calculate scale factors based on timeAxis width and target height '''
         scale_x = timeline_width / layers_width
