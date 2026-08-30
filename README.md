@@ -1,14 +1,12 @@
-# LayerIt!
+# LayerIt
 
-**LayerIt!** is a modular, composable Python framework for the synchronized visualization of music performances and their corresponding musical scores. It integrates audio analysis, automatic beat tracking, and score alignment into a unified layer-based rendering pipeline, producing publication-quality raster (PNG) and vector (SVG) outputs.
-
-Presented as a Late-Breaking Demo at **ISMIR 2026**.
+**LayerIt** is a modular, composable Python framework for the synchronized visualization of music performances and their corresponding musical scores. It integrates audio analysis, automatic beat tracking, and score alignment into a unified layer-based rendering pipeline, producing publication-quality raster (PNG) and vector (SVG) outputs.
 
 ---
 
 ## Overview
 
-LayerIt! addresses a core challenge in Music Information Retrieval (MIR) research: producing synchronized, multi-modal visualizations that overlay acoustic features (spectrograms, beat events) with symbolic score representations in a shared time axis. The system is built around an extensible **layer architecture** — each visualization element is an independent, reusable component that can be freely composed at runtime.
+LayerIt addresses a core challenge in Music Information Retrieval (MIR) research: producing synchronized, multi-modal visualizations that overlay acoustic features (spectrograms, beat events) with symbolic score representations in a shared time axis. The system is built around an extensible **layer architecture** — each visualization element is an independent, reusable component that can be freely composed at runtime.
 
 ---
 
@@ -111,8 +109,8 @@ Beat visualization layers that consume a pre-computed beat `.npz` file.
 | `BeatsLayer` | Renders detected beat positions (excluding downbeats) as vertical markers |
 | `DownbeatsLayer` | Renders detected downbeat positions as vertical markers |
 | `BeatAccurateLayer` | Legacy combined beats + downbeats marker layer |
-| `BeatWindowLayer` | Highlights beat confidence windows; opacity gradient from threshold to peak |
-| `DownbeatWindowLayer` | Highlights downbeat confidence windows; opacity gradient from threshold to peak |
+| `BeatWindowLayer` | Highlights user defined beat logits windows; opacity gradient from threshold to peak |
+| `DownbeatWindowLayer` | Highlightsuser defined downbeat logits windows; opacity gradient from threshold to peak |
 | `NPZ_to_BeatTXT` | Writes detected beats (excluding downbeats) from a `.npz` to a tab-separated TXT file |
 | `NPZ_to_DownbeatTXT` | Writes detected downbeats from a `.npz` to a tab-separated TXT file |
 
@@ -230,6 +228,9 @@ All outputs are directed to the `output/` directory by default.
 | Format | Method | Notes |
 |---|---|---|
 | SVG (multi-panel) | `compose()` | Panels + warped score stacked vertically; each layer is a named `<g class="layer ...">` group |
+
+> **Viewing the SVG output.** Open the composed SVG in an up-to-date Chromium- or
+> Firefox-based browser — in an image editor/viewer, the score may render incorrectly.
 
 ---
 

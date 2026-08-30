@@ -145,13 +145,13 @@ class DownbeatLogits(Curve):
 
 
 class BeatsLayer(Events):
-    """Visualizes detected beat times (excluding downbeats) as vertical markers."""
+    """Visualizes detected beat times as vertical markers."""
 
     def __init__(self, name: str = "Beat", color='red', line_width: float = 1, line_type: str = "solid"):
         super().__init__(name, color=color, line_width=line_width, line_type=line_type, secondary_axis=True, svg_class='beat-marker')
 
     def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
-        data = _load_beat_npz(beat_file, ['detected_beats', 'detected_downbeats'], self.name)
+        data = _load_beat_npz(beat_file, ['detected_beats'], self.name)
         if data is None:
             return False
         self._data = data
@@ -162,8 +162,7 @@ class BeatsLayer(Events):
     def _get_times(self, shared_data: Dict[str, Any]) -> Optional[np.ndarray]:
         if self._data is None:
             return None
-        downbeat_set = set(np.round(self._data["detected_downbeats"], 6))
-        return np.array([t for t in self._data["detected_beats"] if round(t, 6) not in downbeat_set])
+        return np.array(self._data["detected_beats"])
 
 
 class DownbeatsLayer(Events):
@@ -185,39 +184,6 @@ class DownbeatsLayer(Events):
         if self._data is None:
             return None
         return np.array(self._data["detected_downbeats"])
-
-
-class BeatAccurateLayer(Layer):
-    """Legacy combined view of detected beats and downbeats as vertical lines.
-
-    Kept for backward compatibility; new code can use BeatsLayer and
-    DownbeatsLayer directly.
-    """
-
-    def __init__(self, name: str = "Beat Accurate", beat_color='red', downbeat_color='blue', line_width: float = 1):
-        super().__init__(name)
-        self._beats = BeatsLayer(name="Beat", color=beat_color, line_width=line_width)
-        self._downbeats = DownbeatsLayer(name="Downbeat", color=downbeat_color, line_width=line_width)
-
-    def load_data(self, beat_file: str = None, print_output: bool = False, **kwargs) -> bool:
-        loaded_beats = self._beats.load_data(beat_file=beat_file, print_output=print_output, **kwargs)
-        loaded_downbeats = self._downbeats.load_data(beat_file=beat_file, print_output=print_output, **kwargs)
-        return loaded_beats and loaded_downbeats
-
-    def draw(self, ax: Axes, shared_data: Dict[str, Any]) -> Tuple[List, List]:
-        beat_lines, beat_labels = self._beats.draw(ax, shared_data)
-        downbeat_lines, downbeat_labels = self._downbeats.draw(ax, shared_data)
-        return beat_lines + downbeat_lines, beat_labels + downbeat_labels
-
-    def to_svg_group(self, shared_data: Dict[str, Any]) -> Optional[str]:
-        lines = self._beats._lines_svg(shared_data) + self._downbeats._lines_svg(shared_data)
-        if not lines:
-            return None
-        svg_group = f'''  <g id="{self.name}" class="layer beat-accurate">
-{chr(10).join(lines)}
-  </g>'''
-        return svg_group
-
 
 class BeatWindowLayer(Intervals):
     """Visualizes beat confidence windows with gradient transparency.
